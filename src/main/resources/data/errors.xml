@@ -83,11 +83,14 @@
     <message code="validator.tagBalance.missing_start_tag" severity="error">
     <![CDATA[End tag without a start tag.]]>
     </message>
-    <message code="validator.nesting.recursive" severity="error">
-    <![CDATA[ISE tags cannot be nested recursively.]]>
-    </message>
     <message code="validator.nesting.split_tag" severity="warning">
     <![CDATA[This tag is split/improperly nested.]]>
+    </message>
+    <message code="validator.nesting.required" severity="error">
+	<![CDATA[This tag is not the descendent of a required parent]]>
+    </message>
+    <message code="validator.nesting.redundant" severity="warning">
+	<![CDATA[This tag is redundantly nested]]>
     </message>
     <message code="validator.tagBalance.unclosed" severity="error">
     <![CDATA[This tag is not closed.]]>
@@ -102,6 +105,9 @@
     <message code="validator.splitLine.notStartedF" severity="error">
     <![CDATA[Final splitline without a start.]]>
     </message>
+    <message code="validator.splitLine.crossing" severity="error">
+    <![CDATA[Sectioning tag crosses a split line.]]>
+    </message>  
     <message code="validator.splitLine.unclosed" severity="error">
     <![CDATA[Unclosed initial splitline.]]>
     </message>
@@ -127,5 +133,17 @@
     <message code="validator.text.depreciatedhash" severity="error">
     <![CDATA[{#} is depreciated SGML markup. ]]>
     </message>
+    
+    <message code="validator.coverage.outside_div" severity="error">
+     <![CDATA[This tag is inside matter, but not inside a DIV.]]>
+    </message>    
+    <message code="validator.coverage.outside_body" severity="error">
+    <![CDATA[This tag is outside a SCENE and/or ACT and/or DIV, but such tags exist.]]>
+    </message>    
+    <message code="validator.coverage.outside_page" severity="error">
+    <![CDATA[This tag is outside a PAGE, but PAGE tags exist.]]>
+    </message>
+    
+    
   </errorCodes>
 </messages>

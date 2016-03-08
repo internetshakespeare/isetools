@@ -30,6 +30,8 @@ start =
         attribute xml_typeface { "yes" | "no" }?,
         attribute xml_line_parent { "yes" | "no" }?,
         attribute xml_unparsed_text { "yes" | "no" }?,
+        attribute noSplit { text }?,
+        attribute ancestor { text }?,
         desc,
         element attribute {
           attribute name { xsd:NCName },

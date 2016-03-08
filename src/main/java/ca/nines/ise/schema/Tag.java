@@ -92,6 +92,16 @@ public class Tag implements Comparable<Tag> {
   private final String xml_typeface;
   private final String xml_line_parent;
   private final String xml_unparsed_text;
+  
+  /**
+   * Tags this tag cannot split
+   */
+  private final String noSplit;
+  
+  /**
+   * Tag this tag should be a child of
+   */
+  private final String ancestor;
 
   /**
    * A builder class for constructing tags. Use Tag#builder() to get a
@@ -109,6 +119,8 @@ public class Tag implements Comparable<Tag> {
     private String xml_typeface;
     private String xml_line_parent;
     private String xml_unparsed_text;
+    private String noSplit;
+    private String ancestor;
 
     private int lineNumber;
     private String name;
@@ -125,6 +137,8 @@ public class Tag implements Comparable<Tag> {
       desc = "";
       empty = "";
       where = "";
+      noSplit = "";
+      ancestor = "";
       name = "";
       lineNumber = 0;
       source = "";
@@ -153,7 +167,7 @@ public class Tag implements Comparable<Tag> {
      */
     @Override
     public Tag build() {
-      return new Tag(name, desc, empty, where, depreciated, xml_inline, xml_flatten, xml_typeface, xml_line_parent, xml_unparsed_text, attributes, source, lineNumber);
+      return new Tag(name, desc, empty, where, depreciated, xml_inline, xml_flatten, xml_typeface, xml_line_parent, xml_unparsed_text, attributes, source, lineNumber, noSplit, ancestor);
     }
 
     /**
@@ -180,6 +194,16 @@ public class Tag implements Comparable<Tag> {
       tmp = map.getNamedItem("where");
       if (tmp != null) {
         setWhere(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("noSplit");
+      if (tmp != null) {
+        setNoSplit(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("ancestor");
+      if (tmp != null) {
+        setAncestor(tmp.getTextContent());
       }
 
       tmp = map.getNamedItem("depreciated");
@@ -306,8 +330,18 @@ public class Tag implements Comparable<Tag> {
     }
     
     public TagBuilder setWhere(String where) {
-        this.where = where;
-        return this;
+      this.where = where;
+      return this;
+    }
+    
+    public TagBuilder setNoSplit(String noSplit) {
+      this.noSplit = noSplit;
+      return this;
+    }
+    
+    public TagBuilder setAncestor(String ancestor) {
+      this.ancestor = ancestor;
+      return this;
     }
 
     /**
@@ -367,10 +401,12 @@ public class Tag implements Comparable<Tag> {
    */
   private Tag(String name, String desc, String empty, String where, String depreciated, 
       String xml_inline, String xml_flatten, String xml_typeface, String xml_line_parent, String xml_unparsed_text,
-      Map<String, Attribute> attributes, String source, int lineNumber) {
+      Map<String, Attribute> attributes, String source, int lineNumber, String noSplit, String ancestor) {
     this.name = name;
     this.desc = desc;
     this.where = where;
+    this.noSplit = noSplit;
+    this.ancestor = ancestor;
     this.empty = empty;
     this.depreciated = depreciated;
     this.attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
@@ -495,6 +531,14 @@ public class Tag implements Comparable<Tag> {
       return where;
   }
 
+  public String getNoSplit() {
+    return noSplit;
+  }
+  
+  public String getAncestor() {
+    return ancestor;
+  }
+  
   /**
    * Get the line number where the tag is defined.
    *
@@ -576,4 +620,5 @@ public class Tag implements Comparable<Tag> {
 
     return formatter.toString();
   }
+
 }
