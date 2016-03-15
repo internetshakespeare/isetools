@@ -32,6 +32,8 @@ start =
         attribute xml_unparsed_text { "yes" | "no" }?,
         attribute noSplit { text }?,
         attribute ancestor { text }?,
+        attribute redundant { "yes" | "no" }?,
+        attribute spansLines { "yes" | "no" }?,
         desc,
         element attribute {
           attribute name { xsd:NCName },
