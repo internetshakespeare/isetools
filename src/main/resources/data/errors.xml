@@ -26,7 +26,7 @@
     <![CDATA[An unknown or unexpected error occured.]]>
     </message>
     <message code="validator.abbr.depreciated" severity="error">
-    <![CDATA[Pipe-style abbreviations are depreciated. Use <ABBR>...</ABBR> instead.]]>
+    <![CDATA[Pipe-style abbreviations are deprecated. Use <ABBR>...</ABBR> instead.]]>
     </message>
     <message code="validator.annotation.badlevel" severity="error">
     <![CDATA[Annotation notes must be level 0, 1, 2, or 3.]]>
@@ -59,7 +59,7 @@
     <![CDATA[The attribute is missing.]]>
     </message>
     <message code="validator.attribute.depreciated" severity="error">
-    <![CDATA[The attribute is depreciated.]]>
+    <![CDATA[The attribute is deprecated.]]>
     </message>
     <message code="validator.attribute.missing" severity="error">
     <![CDATA[A required attribute is missing.]]>
@@ -96,7 +96,7 @@
     <![CDATA[RULE tags should only occur on a line by themselves.]]>
     </message>
     <message code="validator.tag.depreciated" severity="error">
-    <![CDATA[This tag is depreciated.]]>
+    <![CDATA[This tag is deprecated.]]>
     </message>
     <message code="validator.tag.endattributes" severity="error">
     <![CDATA[End tags do not take attributes.]]>
@@ -114,7 +114,7 @@
     <![CDATA[This tag is not defined in the schema.]]>
     </message>
     <message code="validator.text.depreciatedhash" severity="error">
-    <![CDATA[{#} is depreciated SGML markup. ]]>
+    <![CDATA[{#} is deprecated SGML markup. ]]>
     </message>
   </errorCodes>
 </messages>
