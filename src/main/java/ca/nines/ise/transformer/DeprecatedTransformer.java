@@ -51,7 +51,8 @@ public class DeprecatedTransformer extends IdentityTransform {
     if (n.getText().trim().equals("") && 
         (last_tag.toLowerCase().equals("link") || 
         last_tag.toLowerCase().equals("meta") || 
-        last_tag.toLowerCase().equals("iseheader")))
+        last_tag.toLowerCase().equals("iseheader")) ||
+        last_tag.toLowerCase().equals("sig"))
       return;
     else
         dom.add(n);
