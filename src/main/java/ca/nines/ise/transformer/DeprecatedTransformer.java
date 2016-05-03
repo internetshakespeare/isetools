@@ -37,9 +37,11 @@ import ca.nines.ise.node.TextNode;
 public class DeprecatedTransformer extends IdentityTransform {
   
   String last_tag;
+  StartNode this_page;
   
   public DOM transform(DOM dom) throws IOException {
     last_tag = "";
+    this_page = null;
     return super.transform(dom);
   }
   
@@ -76,7 +78,8 @@ public class DeprecatedTransformer extends IdentityTransform {
     last_tag = n.getName();
     String l = n.getAttribute("n");
 	  n.deleteAttribute("n");
-	  n.setAttribute("l",l);
+	  if (l != null)
+	    n.setAttribute("l",l);
     dom.add(n);
   }
 
@@ -142,6 +145,11 @@ public class DeprecatedTransformer extends IdentityTransform {
     //dom.add(n);
   }
   
+  public void end_page(EndNode n){
+    this_page = null;
+    defaultTransform(n);
+  }
+  
   
   public void end_poem(EndNode n) {
     last_tag = n.getName();
@@ -161,6 +169,13 @@ public class DeprecatedTransformer extends IdentityTransform {
     last_tag = n.getName();
     n.setName("DIV");
     dom.add(n);
+  }
+  
+  public void end_sig(EndNode n){
+    if (this_page == null)
+      defaultTransform(n);
+    else
+      last_tag = n.getName();
   }
 
   
@@ -190,7 +205,8 @@ public class DeprecatedTransformer extends IdentityTransform {
     n.setName("FONT");
     String size = n.getAttribute("n");
     n.deleteAttribute("n");
-    n.setAttribute("size", size);
+    if (size != null)
+      n.setAttribute("size", size);
     dom.add(n);
   }
   
@@ -241,7 +257,8 @@ public class DeprecatedTransformer extends IdentityTransform {
     last_tag = n.getName();
     String l = n.getAttribute("n");
     n.deleteAttribute("n");
-    n.setAttribute("l",l);
+    if (l != null)
+      n.setAttribute("l",l);
     dom.add(n);
   }
 
@@ -256,10 +273,15 @@ public class DeprecatedTransformer extends IdentityTransform {
     last_tag = n.getName();
     String form = n.getAttribute("form");
     n.deleteAttribute("form");
-    n.setAttribute("t", form);
+    if (form != null)
+      n.setAttribute("t", form);
     dom.add(n);
   }
-
+  
+  public void start_page(StartNode n){
+    this_page = n;
+    defaultTransform(n);
+  }
   
   public void start_poem(StartNode n) {
     last_tag = n.getName();
@@ -284,8 +306,20 @@ public class DeprecatedTransformer extends IdentityTransform {
   	n.setName("DIV");
   	String name = n.getAttribute("n");
   	n.deleteAttribute("n");
-  	n.setAttribute("name", name);
+  	if (name != null)
+      n.setAttribute("name", name);
   	dom.add(n);
+  }
+  
+  public void start_sig(StartNode n) {
+    if (this_page == null)
+      defaultTransform(n);
+    else{
+      last_tag = n.getName();
+      String s = n.getAttribute("n");
+      if (s != null)
+        this_page.setAttribute("sig", s);
+    }
   }
 
   
