@@ -64,6 +64,20 @@ public class XMLWriter extends Writer{
    put("C", "center");
    put("J", "justify");
   }};
+  
+  /**
+   * List of ligature characters.
+   */
+  static final Map<String , String> LIG_MAP = new HashMap<String , String>() {{
+    put("{ff}", "\uFB00");
+    put("{fi}", "\uFB01");
+    put("{fl}", "\uFB02");
+    put("{ffi}", "\uFB03");
+    put("{ffl}", "\uFB04");
+    put("{{s}t}", "\uFB05");
+    put("{st}", "\uFB06");
+   }};
+
     
 	protected class XMLStack extends LinkedList<Element> {
 	  private Schema schema;
@@ -74,6 +88,7 @@ public class XMLWriter extends Writer{
     private List<String> LINE_PARENTS;
 		private List<String> renewable;
 		private List<String> VALID_TAGS;
+		private List<String> EXTRA_TAGS;
 		private LinkedList<Element> in_next_line;
 		private Document xml;
 		private LinkedList<LinkedList<Element>> renewing;
@@ -85,7 +100,8 @@ public class XMLWriter extends Writer{
 
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
-		  VALID_TAGS = array_to_lower(Arrays.asList(schema.getTagNames()));
+      VALID_TAGS = array_to_lower(Arrays.asList(schema.getTagNames()));
+      EXTRA_TAGS = get_extra_tags();
 			INLINE_TAGS = schema.get_Inline_tags();
 			FLATTEN = array_to_lower(schema.get_flatten_tags());
 			TYPEFACES = array_to_lower(schema.get_typeface_tags());
@@ -101,6 +117,16 @@ public class XMLWriter extends Writer{
 			endSplitLineOnNext = false;
 			align = null;
 			real_lines = new ArrayList<Element>();
+		}
+		
+		private List<String> get_extra_tags(){
+		  List<String> l = new ArrayList<String>();
+		  l.add("accent");
+      l.add("unicode");
+      l.add("lig");
+      l.add("digraph");
+      l.add("typeform");
+      return l;
 		}
 		
 		private List<String> array_to_lower(List<String> list){
@@ -210,6 +236,15 @@ public class XMLWriter extends Writer{
 		/* line methods */
 		
 		public void append_to_line(String text){
+		  //handle typeform text a certain way
+		  if (peekFirst().getLocalName().equals("typeform")){
+		    String set = peekFirst().getAttributeValue("set");
+		    if (set == null)
+		      peekFirst().addAttribute(new Attribute("set", text));
+		    else
+          peekFirst().addAttribute(new Attribute("set", set+text));
+		    return;
+		  }
 			Element last_line = get_tag_at("l", -1);
 			Element this_line = get_last_tag("l");
 			/* if this text is whitespace and this line has a shy, don't add the text*/
@@ -230,8 +265,15 @@ public class XMLWriter extends Writer{
 		 * @return true if in line, false otherwise
 		 */
 		public boolean in_line() {
-			if (in_tag("l"))
-			  return true;
+      Element current_line = get_nearest_tag("l");
+      if (current_line != null){
+  		  Element line_parent = get_nearest_of(LINE_PARENTS);
+        Elements children = line_parent.getChildElements();
+  		  for (int i=0; i<children.size(); i++){
+  		    if (children.get(i) == current_line)
+  		      return true;
+  		  }
+      }
 			return false;
 		}
 		
@@ -948,6 +990,37 @@ public class XMLWriter extends Writer{
 		  if (in_tag("ambig"))
 		    start_element(e);
 		}
+		
+		/**
+		 * Creates a new typeform element from a typeform or unicode StartNode
+		 * 
+		 * @param node a typeform or unicode node 
+		 */
+		public void new_typeform(StartNode node){
+		  //get the setting without braces
+		  String setting = node.getAttribute("setting").replaceAll("\\{|\\}","");
+		  
+		  Element tf = new_element("typeform");
+		  tf.appendChild(new Text(setting));
+      
+		  peekFirst().appendChild(tf);
+      push(tf);
+		}
+		
+		public void new_lig(StartNode node){
+		  Element lig = new_element("lig");
+		  String setting = node.getAttribute("setting");
+		  String unicode = "";
+		  if (setting != null && LIG_MAP.containsKey(setting)){
+  		  unicode = LIG_MAP.get(setting);
+		  }
+		  Attribute uni = new Attribute("unicode", unicode);
+		  lig.addAttribute(uni);
+		  
+      peekFirst().appendChild(lig);
+      push(lig);
+		}
+		
 	}
 
 	/**
@@ -1164,15 +1237,18 @@ public class XMLWriter extends Writer{
 		case "ADD":
 		  xmlStack.new_add(node, set_attributes(node, e));
 		  break;*/
-	  //no tags for now; content goes straight through
-		case "ACCENT":
-		case "UNICODE":
 		case "LIG":
-		case "DIGRAPH":
-		case "VAR":
+		  xmlStack.new_lig(node);
+      break;
 		case "TYPEFORM":
-    case "TITLEHEAD":
+		case "UNICODE":
+      //xmlStack.start_element(set_attributes(node, e));
+		  xmlStack.new_typeform(node);
 		  break;
+	  //no tags for these; content goes straight through
+	  //case "ACCENT":
+		//case "DIGRAPH":
+		  //break;
 		default:
 			xmlStack.start_element(set_attributes(node, e));
 			break;
@@ -1213,6 +1289,10 @@ public class XMLWriter extends Writer{
    			break;
       case "STANZA":
         xmlStack.end_element("linegroup");
+        break;
+      case "UNICODE":
+      case "TYPEFORM":
+        xmlStack.end_element("typeform");
         break;
    		default:
    			xmlStack.end_element(xml_name);
@@ -1446,6 +1526,9 @@ public class XMLWriter extends Writer{
 	  if (n.type().equals(NodeType.TEXT))
 	    return true;
 	  String name = n.getName().toLowerCase();
+	  /* if the tag is in EXTRA (created during processing, valid) */
+	  if (xmlStack.EXTRA_TAGS.contains(name))
+	    return true;
 	  /* if the tag is in the schema */
 	  if (xmlStack.VALID_TAGS.contains(name)){
 	    if (xmlStack.schema.getTag(name).isDepreciated())
@@ -1453,7 +1536,15 @@ public class XMLWriter extends Writer{
 	    if (xmlStack.schema.getTag(name).getEmpty().equals("optional"))
 	      return true;
 	    /* if the given tag and its tag in the schema have different types */
-      if (xmlStack.schema.getTag(name).isEmpty() ^ n.type().equals(NodeType.EMPTY)){
+      if (xmlStack.schema.getTag(name).isEmpty() ^ n.type().equals(NodeType.EMPTY))
+        return false;
+      /* if the tag is not primary */
+      String where = xmlStack.schema.getTag(name).getWhere();
+      if (where.equals("apparatus") ||
+          where.equals("annotations") || 
+          where.equals("collations") || 
+          where.equals("secondary") ||
+          where.equals("unknown")){
         return false;
       }
 	    return true;

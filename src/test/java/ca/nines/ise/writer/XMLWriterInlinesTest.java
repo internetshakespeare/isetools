@@ -39,6 +39,14 @@ public class XMLWriterInlinesTest extends XMLWriterTestBase {
         /* iembeds are a special case; don't have to be inline */
         if (schema.getTag(t).getName().equals("iembed"))
           tags.remove(t);
+        String where = schema.getTag(t).getWhere();
+        if (where.equals("apparatus") ||
+            where.equals("annotations") || 
+            where.equals("collations") || 
+            where.equals("secondary") ||
+            where.equals("unknown")){
+          tags.remove(t);
+        }
       }
     	List<Object[]> list2 = new ArrayList<Object[]>();
     	for(String t:tags)
