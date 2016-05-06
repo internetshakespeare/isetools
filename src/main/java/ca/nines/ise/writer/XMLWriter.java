@@ -26,6 +26,8 @@ import ca.nines.ise.node.Node;
 import ca.nines.ise.node.NodeType;
 import ca.nines.ise.node.StartNode;
 import ca.nines.ise.node.TagNode;
+import ca.nines.ise.node.chr.LigatureCharNode;
+import ca.nines.ise.node.chr.NestedCharNode;
 import ca.nines.ise.schema.Schema;
 import ca.nines.ise.schema.Tag;
 
@@ -64,20 +66,6 @@ public class XMLWriter extends Writer{
    put("C", "center");
    put("J", "justify");
   }};
-  
-  /**
-   * List of ligature characters.
-   */
-  static final Map<String , String> LIG_MAP = new HashMap<String , String>() {{
-    put("{ff}", "\uFB00");
-    put("{fi}", "\uFB01");
-    put("{fl}", "\uFB02");
-    put("{ffi}", "\uFB03");
-    put("{ffl}", "\uFB04");
-    put("{{s}t}", "\uFB05");
-    put("{st}", "\uFB06");
-   }};
-
     
 	protected class XMLStack extends LinkedList<Element> {
 	  private Schema schema;
@@ -1007,16 +995,19 @@ public class XMLWriter extends Writer{
       push(tf);
 		}
 		
+		private String get_lig(String s){
+		  if (LigatureCharNode.ligMap.containsKey(s))
+		    return LigatureCharNode.ligMap.get(s);
+		  if (NestedCharNode.nestedCharMap.containsKey(s))
+		    return NestedCharNode.nestedCharMap.get(s);
+		  return null;
+		}
+		
 		public void new_lig(StartNode node){
 		  Element lig = new_element("lig");
-		  String setting = node.getAttribute("setting");
-		  String unicode = "";
-		  if (setting != null && LIG_MAP.containsKey(setting)){
-  		  unicode = LIG_MAP.get(setting);
-		  }
-		  Attribute uni = new Attribute("unicode", unicode);
-		  lig.addAttribute(uni);
-		  
+		  String uni = get_lig(node.getAttribute("setting"));
+		  if (uni != null)
+        lig.addAttribute(new Attribute("unicode", uni));
       peekFirst().appendChild(lig);
       push(lig);
 		}
