@@ -22,6 +22,7 @@ import ca.nines.ise.dom.Fragment;
 import ca.nines.ise.node.CharNode;
 import ca.nines.ise.node.Node;
 import java.io.IOException;
+import java.util.HashMap;
 
 /**
  * Special characters nested together to make a ligature.
@@ -30,6 +31,20 @@ import java.io.IOException;
  */
 public class NestedCharNode extends CharNode {
 
+  
+    /**
+     * Mapping.
+     */
+    public static final HashMap<String, String> nestedCharMap = new HashMap<>();
+  
+    /**
+     * Construct the mapping.
+     */
+    static {
+      nestedCharMap.put("{{s}t}", "\uFB05");
+    }
+  
+  
   /**
    * Expand the characters into a DOM Fragment.
    *

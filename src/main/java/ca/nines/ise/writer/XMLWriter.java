@@ -26,8 +26,9 @@ import ca.nines.ise.node.Node;
 import ca.nines.ise.node.NodeType;
 import ca.nines.ise.node.StartNode;
 import ca.nines.ise.node.TagNode;
+import ca.nines.ise.node.chr.LigatureCharNode;
+import ca.nines.ise.node.chr.NestedCharNode;
 import ca.nines.ise.schema.Schema;
-import ca.nines.ise.schema.Tag;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -35,7 +36,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Hashtable;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -59,25 +59,19 @@ public class XMLWriter extends Writer{
   public static final String LINK_NS = "http://internetshakespeare.uvic.ca/#internal-linking";
   public static final String HTML_NS = "http://www.w3.org/1999/xhtml";
     
-  static final Map<String , String> XML_MAP = new HashMap<String , String>() {{
+  static final Map<String , String> ALIGN_MAP = new HashMap<String , String>() {{
    put("RA", "right");
    put("C", "center");
    put("J", "justify");
   }};
   
-  /**
-   * List of ligature characters.
-   */
-  static final Map<String , String> LIG_MAP = new HashMap<String , String>() {{
-    put("{ff}", "\uFB00");
-    put("{fi}", "\uFB01");
-    put("{fl}", "\uFB02");
-    put("{ffi}", "\uFB03");
-    put("{ffl}", "\uFB04");
-    put("{{s}t}", "\uFB05");
-    put("{st}", "\uFB06");
-   }};
-
+  static final List<String> EXTRA_TAGS = new ArrayList<String>() {{
+    add("accent");
+    add("unicode");
+    add("lig");
+    add("digraph");
+    add("typeform");
+  }};
     
 	protected class XMLStack extends LinkedList<Element> {
 	  private Schema schema;
@@ -88,7 +82,6 @@ public class XMLWriter extends Writer{
     private List<String> LINE_PARENTS;
 		private List<String> renewable;
 		private List<String> VALID_TAGS;
-		private List<String> EXTRA_TAGS;
 		private LinkedList<Element> in_next_line;
 		private Document xml;
 		private LinkedList<LinkedList<Element>> renewing;
@@ -101,7 +94,6 @@ public class XMLWriter extends Writer{
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
       VALID_TAGS = array_to_lower(Arrays.asList(schema.getTagNames()));
-      EXTRA_TAGS = get_extra_tags();
 			INLINE_TAGS = schema.get_Inline_tags();
 			FLATTEN = array_to_lower(schema.get_flatten_tags());
 			TYPEFACES = array_to_lower(schema.get_typeface_tags());
@@ -117,16 +109,6 @@ public class XMLWriter extends Writer{
 			endSplitLineOnNext = false;
 			align = null;
 			real_lines = new ArrayList<Element>();
-		}
-		
-		private List<String> get_extra_tags(){
-		  List<String> l = new ArrayList<String>();
-		  l.add("accent");
-      l.add("unicode");
-      l.add("lig");
-      l.add("digraph");
-      l.add("typeform");
-      return l;
 		}
 		
 		private List<String> array_to_lower(List<String> list){
@@ -235,6 +217,11 @@ public class XMLWriter extends Writer{
 
 		/* line methods */
 		
+		/**
+		 * Appends a given text string to the current line
+		 * 
+		 * @param text the string to be appended
+		 */
 		public void append_to_line(String text){
 		  //handle typeform text a certain way
 		  if (peekFirst().getLocalName().equals("typeform")){
@@ -756,8 +743,61 @@ public class XMLWriter extends Writer{
 			return e;
 		}
 
-		/* special case elements */
+		/* special case elements */   
 		
+		/**
+     * Creates the element @e if we're in an 'ambig' element
+     * 
+     * @param e an element
+     */
+    public void new_rdg(Element e){
+      if (in_tag("ambig"))
+        start_element(e);
+    }
+    
+    /**
+     * Creates a new typeform element from a typeform or unicode StartNode
+     * 
+     * @param node the typeform or unicode StartNode 
+     */
+    public void new_typeform(StartNode node){
+      //get the setting without braces
+      String setting = node.getAttribute("setting").replaceAll("\\{|\\}","");
+      
+      Element tf = new_element("typeform");
+      tf.appendChild(new Text(setting));
+      
+      peekFirst().appendChild(tf);
+      push(tf);
+    }
+    
+    private String get_lig(String s){
+      if (LigatureCharNode.ligMap.containsKey(s))
+        return LigatureCharNode.ligMap.get(s);
+      if (NestedCharNode.nestedCharMap.containsKey(s))
+        return NestedCharNode.nestedCharMap.get(s);
+      return null;
+    }
+    
+    /**
+     * Creates a new lig element from a lig StartNode
+     * 
+     * @param node the lig StartNode
+     */
+    public void new_lig(StartNode node){
+      Element lig = new_element("lig");
+      String uni = get_lig(node.getAttribute("setting"));
+      if (uni != null)
+        lig.addAttribute(new Attribute("unicode", uni));
+      peekFirst().appendChild(lig);
+      push(lig);
+    }
+		
+		/**
+		 * Creates and adds a col/col-reset element from the given element @e
+		 * 
+		 * @param e an element to use to create a col
+		 */
 		public void new_column(Element e){
 			String n = e.getAttributeValue("n");
 			if (n != null && Integer.valueOf(n) == 0)
@@ -766,6 +806,13 @@ public class XMLWriter extends Writer{
 				empty_element(new_element("col"));
 		}
 		
+		/**
+		 * Creates and adds a linegroup.
+		 * If the provided element @e has an attribute @n,
+		 *  an ms with attributes t=stanza and t=@n is added to the bew linegroup
+		 * 
+		 * @param e an element to use to create the stanza linegroup
+		 */
 		public void new_stanza(Element e){
 			start_element(new_element("linegroup"));
 			String n = e.getAttributeValue("n");
@@ -844,7 +891,10 @@ public class XMLWriter extends Writer{
 		}
 
 		/* other methods */
-
+		
+		/**
+		 * @return true if the element at the head of the stack is in DONT_PARSE_TEXT
+		 */
 		public Boolean in_dont_parse(){
 			return DONT_PARSE_TEXT.contains(peekFirst().getLocalName());
 		}
@@ -984,41 +1034,6 @@ public class XMLWriter extends Writer{
 			Element work = xml.getRootElement();
 			if (is_last_child(name))
 				work.removeChild(work.getChildElements().size() - 1);
-		}
-		
-		public void new_rdg(Element e){
-		  if (in_tag("ambig"))
-		    start_element(e);
-		}
-		
-		/**
-		 * Creates a new typeform element from a typeform or unicode StartNode
-		 * 
-		 * @param node a typeform or unicode node 
-		 */
-		public void new_typeform(StartNode node){
-		  //get the setting without braces
-		  String setting = node.getAttribute("setting").replaceAll("\\{|\\}","");
-		  
-		  Element tf = new_element("typeform");
-		  tf.appendChild(new Text(setting));
-      
-		  peekFirst().appendChild(tf);
-      push(tf);
-		}
-		
-		public void new_lig(StartNode node){
-		  Element lig = new_element("lig");
-		  String setting = node.getAttribute("setting");
-		  String unicode = "";
-		  if (setting != null && LIG_MAP.containsKey(setting)){
-  		  unicode = LIG_MAP.get(setting);
-		  }
-		  Attribute uni = new Attribute("unicode", unicode);
-		  lig.addAttribute(uni);
-		  
-      peekFirst().appendChild(lig);
-      push(lig);
 		}
 		
 	}
@@ -1196,7 +1211,7 @@ public class XMLWriter extends Writer{
 		case "RA":
 		case "C":
 		case "J":
-			xmlStack.new_align(XML_MAP.get(node.getName()));
+			xmlStack.new_align(ALIGN_MAP.get(node.getName()));
 			break;
 		case "SP":
 			if (xmlStack.speech_has_speaker())
@@ -1233,16 +1248,11 @@ public class XMLWriter extends Writer{
 		case "RDG":
 		  xmlStack.new_rdg(set_attributes(node, e));
 		  break;
-		  /*
-		case "ADD":
-		  xmlStack.new_add(node, set_attributes(node, e));
-		  break;*/
 		case "LIG":
 		  xmlStack.new_lig(node);
       break;
 		case "TYPEFORM":
 		case "UNICODE":
-      //xmlStack.start_element(set_attributes(node, e));
 		  xmlStack.new_typeform(node);
 		  break;
 	  //no tags for these; content goes straight through
@@ -1357,7 +1367,7 @@ public class XMLWriter extends Writer{
 	}
 
 	/**
-	 * Parses a text node for newline characters and splits splits the text node
+	 * Parses a text node for newline characters and splits the text node
 	 * into separate nodes placed in their own lines. First node is added to the
 	 * current line (if in one) Last line is not ended
 	 * 
@@ -1371,12 +1381,12 @@ public class XMLWriter extends Writer{
 	  /* if text is a newline character, end line */
 	  if (text.equals("\n"))
 	    xmlStack.end_line();
+    /* if text is all whitespace or in an element which should not be parsed
+     * don't parse further */
 	  else if (trim_whitespace(text).isEmpty() || xmlStack.in_dont_parse())
-	    /* if text is all whitespace or in an element which should not be parsed
-	     * don't parse further */
 	    xmlStack.append_to_line(text);
+    /* if not in a line, start one; text can not be the child of a line parent */
 		else{
-  		/* if not in a line, start one; text can not be the child of work */
   		xmlStack.ensure_in_line();
   		xmlStack.append_to_line(text);
 		}
@@ -1482,10 +1492,12 @@ public class XMLWriter extends Writer{
 
 	/**
 	 * Applies attributes to a given Element @e All attributes in @node are
-	 * added to @e with the following caveats: Attributes in @node with a name
-	 * that is a key to @changes have their names changed to the name in @changes
-	 * corresponding to that name key Attributes in @node with a name in @ignore
-	 * are ignored entirely All attributes in @add are also added to @e
+	 * added to @e with the following caveats: 
+	 *   Attributes in @node with a name that is a key to @changes 
+	 *     have their names changed to the name in @changes 
+	 *     corresponding to that name key. 
+	 *   Attributes in @node with a name in @ignore are not added to @e. 
+	 *   All attributes in @add are added to @e
 	 * 
 	 * @param node
 	 *            node to copy attributes from
@@ -1527,7 +1539,7 @@ public class XMLWriter extends Writer{
 	    return true;
 	  String name = n.getName().toLowerCase();
 	  /* if the tag is in EXTRA (created during processing, valid) */
-	  if (xmlStack.EXTRA_TAGS.contains(name))
+	  if (EXTRA_TAGS.contains(name))
 	    return true;
 	  /* if the tag is in the schema */
 	  if (xmlStack.VALID_TAGS.contains(name)){
