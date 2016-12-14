@@ -45,6 +45,8 @@ public class UnicodeCharNode extends CharNode {
     charMap.put("{C}", "\u00c7");
     charMap.put("{th}", "\u00fe");
     charMap.put("{TH}", "\u00de");
+    charMap.put("{Y}", "\u021C");
+    charMap.put("{y}", "\u021D");
   }
 
   /**

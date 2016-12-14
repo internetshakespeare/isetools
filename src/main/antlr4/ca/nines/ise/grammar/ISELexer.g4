@@ -33,6 +33,8 @@ CHAR_UNICODE
     | '{C}'       // upper c with cedilla Ç     U+00C7
     | '{th}'      // lower thorn          þ     U+00FE
     | '{TH}'      // upper thorn          Þ     U+00DE  
+    | '{Y}'		  // upper yogh			  Ȝ	    U+021C
+    | '{y}'		  // lower yogh			  ȝ		U+021D
     ) 
     ;
 

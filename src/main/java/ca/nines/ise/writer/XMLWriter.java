@@ -17,6 +17,7 @@
  */
 package ca.nines.ise.writer;
 
+import org.apache.commons.lang3.mutable.MutableInt;
 
 import ca.nines.ise.document.Annotation;
 import ca.nines.ise.dom.DOM;
@@ -26,6 +27,7 @@ import ca.nines.ise.node.Node;
 import ca.nines.ise.node.NodeType;
 import ca.nines.ise.node.StartNode;
 import ca.nines.ise.node.TagNode;
+import ca.nines.ise.node.chr.DigraphCharNode;
 import ca.nines.ise.node.chr.LigatureCharNode;
 import ca.nines.ise.node.chr.NestedCharNode;
 import ca.nines.ise.schema.Schema;
@@ -65,7 +67,7 @@ public class XMLWriter extends Writer{
    put("J", "justify");
   }};
   
-  static final List<String> EXTRA_TAGS = new ArrayList<String>() {{
+  static final List<String> CHAR_TAGS = new ArrayList<String>() {{
     add("accent");
     add("unicode");
     add("lig");
@@ -87,14 +89,16 @@ public class XMLWriter extends Writer{
 		private LinkedList<LinkedList<Element>> renewing;
 		private List<String> page_children;
 		private Boolean endSplitLine;
-		private Boolean endSplitLineOnNext;
 		private String align;
 		private List<Element> real_lines;
+		private String current_act;
+		private String current_scene;
 
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
       VALID_TAGS = array_to_lower(Arrays.asList(schema.getTagNames()));
-			INLINE_TAGS = schema.get_Inline_tags();
+			INLINE_TAGS = array_to_lower(schema.get_Inline_tags());
+			INLINE_TAGS.addAll(CHAR_TAGS);
 			FLATTEN = array_to_lower(schema.get_flatten_tags());
 			TYPEFACES = array_to_lower(schema.get_typeface_tags());
 			DONT_PARSE_TEXT = array_to_lower(schema.get_unparsed_text_tags());
@@ -106,10 +110,25 @@ public class XMLWriter extends Writer{
 			renewing.push(new LinkedList<Element>());
 			page_children = new ArrayList<String>();
 			endSplitLine = false;
-			endSplitLineOnNext = false;
 			align = null;
 			real_lines = new ArrayList<Element>();
+			current_act = null;
+			current_scene = null;
 		}
+		
+		public void set_scene(Element e){
+		  Attribute a = e.getAttribute("n");
+		  if (a != null){
+		    current_scene = a.getValue();
+		  }
+		}
+
+    public void set_act(Element e){
+      Attribute a = e.getAttribute("n");
+      if (a != null){
+        current_act = a.getValue();
+      }
+    }
 		
 		private List<String> array_to_lower(List<String> list){
 		  for (int i=0; i<list.size(); i++){
@@ -177,7 +196,7 @@ public class XMLWriter extends Writer{
 		  Element s = null;
 			while (!get_renew().isEmpty()) {
 				Element e = get_renew().pop();
-				if (INLINE_TAGS.contains(e.getLocalName().toUpperCase()))
+				if (INLINE_TAGS.contains(e.getLocalName().toLowerCase()))
           ensure_in_line();
 				if (e.getLocalName().equals("s")){
 				  Boolean created = new_speech(false);
@@ -232,6 +251,12 @@ public class XMLWriter extends Writer{
           peekFirst().addAttribute(new Attribute("set", set+text));
 		    return;
 		  }
+		  //if content of ligature is a digraph, expand it
+      if (peekFirst().getLocalName().equals("lig")){
+        for (String k : DigraphCharNode.charMap.keySet())
+          if (DigraphCharNode.charMap.get(k).equals(text))
+            text = k.replaceAll("[{,}]", "");
+      }
 			Element last_line = get_tag_at("l", -1);
 			Element this_line = get_last_tag("l");
 			/* if this text is whitespace and this line has a shy, don't add the text*/
@@ -287,11 +312,6 @@ public class XMLWriter extends Writer{
 				renew(e.getLocalName(),get_attributes(e));
 				e = super.pop();
 			}
-			// if ending split on next line, skip this one
-			if (endSplitLineOnNext){
-			  endSplitLine = true;
-			  endSplitLineOnNext = false;
-			} 
 			// if the l tag we just closed contains only iembeds
 			if (contains_only(e,"iembed") && !real_lines.contains(e)){
 			  ParentNode parent = e.getParent();
@@ -305,9 +325,41 @@ public class XMLWriter extends Writer{
 			  e.detach();
 			}
 			
-      // if ending splitline, pop that as well
-			else if (endSplitLine)
-				end_element("splitline");
+      // if ending splitline where the last line does not only contain SP, pop that as well
+			if (endSplitLine){
+			  Elements lines = get_last_tag("splitline").getChildElements("l",DOC_NS);
+			  Element last_line = lines.get(lines.size()-1);
+			  Element last_speech = last_line.getFirstChildElement("s", DOC_NS);
+			  
+			  endSplitLine = has_non_SP_content(last_line);
+			  if (!endSplitLine && last_speech != null)
+			    endSplitLine = has_non_SP_content(last_speech);
+			  
+	      if (endSplitLine){
+	        end_element("splitline");
+	        endSplitLine = false;
+	      }else
+	        endSplitLine = true;
+      }
+    }
+		
+		private Boolean has_non_SP_content(Element e){
+      for (int i=0; i<e.getChildCount(); i++){
+        if (e.getChild(i) instanceof Text){
+          if (e.getChild(i).getValue().trim().length() > 0)
+            return true;
+        }else if (e.getChild(i) instanceof Element){
+          Element el = (Element) e.getChild(i); 
+          if (el.getLocalName().equals("ms"))
+            continue;
+          if (el.getLocalName().equals("s"))
+            continue;
+          if (!el.getLocalName().equals("sp")){
+            return true;
+          }
+        }
+      }
+      return false;
 		}
 		
 		private Boolean contains_only(Element e, String child){
@@ -375,7 +427,6 @@ public class XMLWriter extends Writer{
 			if (in_page_child())
 				pop();
 			Boolean needs_whitespace = check_whitespace(get_last_tag("l"));
-			endSplitLine = false;
 			Boolean new_ms = false;
 			for (String name : node.getAttributeNames()) {
 				if (name.equals("n"))
@@ -516,7 +567,7 @@ public class XMLWriter extends Writer{
 		public void ensure_in_speech() {
 			if (!in_tag("s")) {
 				ensure_in_line();
-				start_element(new_element("s"));
+				new_speech(false);
 			}
 		}
 		
@@ -542,12 +593,9 @@ public class XMLWriter extends Writer{
 		 */
 		private int get_last_speech_index() {
 			Element s = get_last_tag("s");
-			if (s == null)
+			if (s == null || s.getAttribute("k") == null)
 				return 0;
-			if (s.getAttribute("k") != null)
-				return Integer.valueOf(s.getAttributeValue("k"));
-			else
-				return 0;
+			return Integer.valueOf(s.getAttributeValue("k"));
 		}
 
 		/* element methods */
@@ -573,6 +621,14 @@ public class XMLWriter extends Writer{
 		 *            number of the ms element
 		 */
 		public void new_ms_element(String ln, String n) {
+		  if (ln.equals("l")){
+		    if (current_scene != null){
+		      n = current_scene + "." + n;
+		    }
+        if (current_act != null){
+          n = current_act + "." + n;
+        }
+		  }
 			ensure_in_line();
 			Element e = new_element("ms");
 			if (ln != null)
@@ -589,7 +645,7 @@ public class XMLWriter extends Writer{
 		 * @param node
 		 */
 		private void start_element(StartNode node) {
-			if (INLINE_TAGS.contains(node.getName()))
+			if (INLINE_TAGS.contains(node.getName().toLowerCase()))
 				ensure_in_line();
 		}
 		
@@ -659,22 +715,21 @@ public class XMLWriter extends Writer{
 			// this if statement is to allow recursion (font within font for example)
 			if (!renewing_has(peekFirst().getLocalName()))
 					end_renew(name);
-			// if not in this tag or its descendants, return (happens if being
-			// renewed)
+			// if not in this tag or its descendants, return (happens if being renewed)
 			if (!in_tag(name))
 				return;
 			Element e = super.pop();
 			while (!e.getLocalName().equals(name))
 				e = super.pop();
-			// renew anything being renewed if closing element in
-			// end_till_line_and_start
+			// renew anything being renewed if closing element in end_till_line_and_start
 			if (is_typeface(name))
 				renew_elements();
 			else if (is_lineParent(name)){
 			  // splitline doesn't get its own renewing stack
-			  if (!name.equals("splitline"))
+			  if (!name.equals("splitline")){
 			    renewing.pop();
-				renew_elements();
+			    renew_elements();
+			  }
 			}
 			else if (is_flatten(name))
 				renew_elements();
@@ -732,7 +787,7 @@ public class XMLWriter extends Writer{
 		 * 
 		 * @param name
 		 *            the name of the new Element
-		 * @param atts
+		 * @param attsDOC_NS
 		 *            HashMap of attributes (<name,value>)
 		 * @return Element created
 		 */
@@ -776,17 +831,20 @@ public class XMLWriter extends Writer{
         return LigatureCharNode.ligMap.get(s);
       if (NestedCharNode.nestedCharMap.containsKey(s))
         return NestedCharNode.nestedCharMap.get(s);
+      if (DigraphCharNode.charMap.containsKey(s))
+        return DigraphCharNode.charMap.get(s);
       return null;
     }
     
     /**
-     * Creates a new lig element from a lig StartNode
+     * Creates a new lig element from a lig or digraph StartNode
      * 
      * @param node the lig StartNode
      */
     public void new_lig(StartNode node){
       Element lig = new_element("lig");
-      String uni = get_lig(node.getAttribute("setting"));
+      String setting = node.getAttribute("setting");
+      String uni = get_lig(setting);
       if (uni != null)
         lig.addAttribute(new Attribute("unicode", uni));
       peekFirst().appendChild(lig);
@@ -809,7 +867,7 @@ public class XMLWriter extends Writer{
 		/**
 		 * Creates and adds a linegroup.
 		 * If the provided element @e has an attribute @n,
-		 *  an ms with attributes t=stanza and t=@n is added to the bew linegroup
+		 *  an ms with attributes t=stanza and t=@n is added to the new linegroup
 		 * 
 		 * @param e an element to use to create the stanza linegroup
 		 */
@@ -934,10 +992,51 @@ public class XMLWriter extends Writer{
 			return elements;
 		}
 		
+		private Element search_backwards(String name, MutableInt index, ParentNode start, boolean checkParent){
+		  if (start == null)
+		    return null;
+		  
+		  //search children of start backwards
+      for (int i = start.getChildCount() - 1; i >= 0; i--){
+        if (start.getChild(i) instanceof Element){
+          Element n = (Element) start.getChild(i);
+          if (n.getLocalName().equals(name)){
+            if (index.getValue() == 0)
+              return n;
+            else
+              index.increment();
+          }
+          //check n's children...
+          if (n.getChildCount() > 0){
+            Element e = search_backwards(name, index, n, false);
+            if (e != null)
+              return e;
+          }
+        }
+      }
+      if (!checkParent)
+        return null;
+      
+      //check start itself
+      if (start instanceof Element){
+        Element n = (Element) start;
+        if (n.getLocalName().equals(name)){
+          if (index.getValue() == 0)
+            return n;
+          else
+            index.increment();
+        }
+      }
+      //search start's parent
+      if (start.getParent() != null)
+        return search_backwards(name, index, start.getParent(), true);
+      return null;
+		}
+    
 		/**
 		 * Gets the Element of given name @name at place @index
 		 * @index takes integers <= 0
-		 * ex. -1 will give you the second last tag
+		 * ex. -1 will give you the second last tag of @name name
 		 * 
 		 * @param name
 		 * 				name of the tag
@@ -948,16 +1047,10 @@ public class XMLWriter extends Writer{
 		private Element get_tag_at(String name, int index){
 			if (index > 0)
 				return null;
-			List<Element> list = get_all_elements(xml.getRootElement());
-			for (int i = list.size() - 1; i >= 0; i--){
-				if (list.get(i).getLocalName().equals(name)){
-					if (index == 0)
-						return list.get(i);
-					else
-						index ++;
-				}
-			}
-			return null;
+			//don't call this with an empty root node
+			ParentNode start = peekFirst().getParent();
+			Element found = search_backwards(name, new MutableInt(index), start, true);
+			return found;
 		}
 		
 		/**
@@ -1183,11 +1276,20 @@ public class XMLWriter extends Writer{
 		case "DIV":
 		case "BACKMATTER":
 		case "FRONTMATTER":
+      xmlStack.end_line();
+      node.deleteAttribute("link"); /* deprecated */
+      xmlStack.empty_element(set_attributes(node, e));
+      break;
 		case "ACT":
 		case "SCENE":
 			xmlStack.end_line();
 			node.deleteAttribute("link"); /* deprecated */
-			xmlStack.empty_element(set_attributes(node, e));
+			Element p = set_attributes(node, e);
+			xmlStack.empty_element(p);
+			if (node.getName().toUpperCase().equals("SCENE"))
+			  xmlStack.set_scene(p);
+      if (node.getName().toUpperCase().equals("ACT"))
+        xmlStack.set_act(p);
 			break;
 		case "COL":
 			xmlStack.end_line();
@@ -1249,6 +1351,7 @@ public class XMLWriter extends Writer{
 		  xmlStack.new_rdg(set_attributes(node, e));
 		  break;
 		case "LIG":
+    case "DIGRAPH":
 		  xmlStack.new_lig(node);
       break;
 		case "TYPEFORM":
@@ -1256,9 +1359,8 @@ public class XMLWriter extends Writer{
 		  xmlStack.new_typeform(node);
 		  break;
 	  //no tags for these; content goes straight through
-	  //case "ACCENT":
-		//case "DIGRAPH":
-		  //break;
+	  case "ACCENT":
+		  break;
 		default:
 			xmlStack.start_element(set_attributes(node, e));
 			break;
@@ -1304,6 +1406,10 @@ public class XMLWriter extends Writer{
       case "TYPEFORM":
         xmlStack.end_element("typeform");
         break;
+      case "LIG":
+      case "DIGRAPH":
+        xmlStack.end_element("lig");
+        break;
    		default:
    			xmlStack.end_element(xml_name);
    			break;
@@ -1314,7 +1420,6 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
     case "IEMBED":
-      xmlStack.ensure_in_line();
       xmlStack.empty_element(set_attributes(node,
           xmlStack.new_element(xml_name, LINK_NS)));
       break;
@@ -1414,7 +1519,9 @@ public class XMLWriter extends Writer{
     for(Node n : nodes){
       parse_node(n,addStack);
     }
+    //all elements within add, parsed
     Elements elements = doc.getRootElement().getChildElements();
+    //head of real stack
     Element head = xmlStack.peekFirst();
     for (int i=0; i<elements.size(); i++){
       elements.get(i).detach();
@@ -1422,31 +1529,33 @@ public class XMLWriter extends Writer{
       if (child.getLocalName().equals("l")){
         /*  l becomes an add */
         child.setLocalName("add");
-        /* create new l */
-        Element line = addStack.new_element("l");
-        /* move attributes to new line */
-        for(int j=0; j<child.getAttributeCount(); j++){
-          Attribute a = child.getAttribute(j);
-          a.detach();
-          line.addAttribute(a);
+        /* if head is a line parent, wrap child in a line */
+        if (addStack.is_lineParent(head.getLocalName())){
+          /* create new l */
+          Element line = addStack.new_element("l");
+          /* move attributes to new line */
+          for(int j=0; j<child.getAttributeCount(); j++){
+            Attribute a = child.getAttribute(j);
+            a.detach();
+            line.addAttribute(a);
+          }
+          /* set add's attributes */
+          child = set_attributes((StartNode)node,child);
+          /* wrap new add in new l */
+          line.appendChild(child);
+          head.appendChild(line);
+          /* if on the last item in the ADD and it's a line, push it on the stack (leave it open) */
+          if (i == elements.size() - 1)
+            xmlStack.push(line);
+        } else {
+          child = set_attributes((StartNode)node,child);
+          head.appendChild(child);
         }
-        /* set add's attributes */
-        child = set_attributes((StartNode)node,child);
-        /* wrap new add in new l */
-        line.appendChild(child);
-        head.appendChild(line);
-        /* if on the last item in the ADD and it's a line, push it on the stack (leave it open) */
-        if (i == elements.size() - 1)
-          xmlStack.push(line);
       }else{
         Element add = set_attributes((StartNode)node, addStack.new_element("add"));
         add.appendChild(child);
         head.appendChild(add);
       }
-      /* if the head of xmlStack is a line, end it and make head its parent */
-      if (head.getLocalName().equals("l"))
-        xmlStack.pop();
-        head = xmlStack.peekFirst();
     }
     return end_tag;
   }
@@ -1538,8 +1647,8 @@ public class XMLWriter extends Writer{
 	  if (n.type().equals(NodeType.TEXT))
 	    return true;
 	  String name = n.getName().toLowerCase();
-	  /* if the tag is in EXTRA (created during processing, valid) */
-	  if (EXTRA_TAGS.contains(name))
+	  /* if the tag is in CHAR (created during processing, valid) */
+	  if (CHAR_TAGS.contains(name))
 	    return true;
 	  /* if the tag is in the schema */
 	  if (xmlStack.VALID_TAGS.contains(name)){
