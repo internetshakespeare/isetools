@@ -55,7 +55,8 @@ public class ValidatorStack<E extends Node> extends LinkedList<E>{
    * false if stack is empty or head is not equal
    */
   public Boolean is_head_equal(String name){
-    return get_head_name().toLowerCase().equals(name.toLowerCase());
+    return !this.isEmpty() &&
+           get_head_name().toLowerCase().equals(name.toLowerCase());
   }
   
   /**
