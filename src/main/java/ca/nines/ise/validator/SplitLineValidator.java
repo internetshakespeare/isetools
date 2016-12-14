@@ -126,13 +126,7 @@ public class SplitLineValidator {
       Log.addMessage(m);
     }
     //remove n tag from stack
-    Node end = null;
-    for (Node s : nodeStack) {
-      if (s.getName().toLowerCase().equals(n.getName().toLowerCase()))
-        end = s;
-    }
-    if (end != null)
-      nodeStack.remove(end);
+    nodeStack.remove_first(n);
   }
   
   private void process_sectioning_start(StartNode n){
