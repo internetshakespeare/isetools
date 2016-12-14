@@ -44,8 +44,8 @@ public class DescendantCountValidator {
   
   //<parent,<descendant,count>>
   static final Map<String , HashMap<String,String>> DESCENDANT_MAP = new HashMap<String , HashMap<String,String>>() {{
-    put("s", new HashMap<String , String>() {{put("sp","0");}});
-    put("bracegroup", new HashMap<String , String>() {{put("label","0");}});
+    put("s", new HashMap<String , String>() {{put("sp","1");}});
+    put("bracegroup", new HashMap<String , String>() {{put("label","1");}});
    }};
   
   @ErrorCode(code = {
@@ -73,7 +73,7 @@ public class DescendantCountValidator {
               if (c.getName().toLowerCase().equals(n.getName().toLowerCase()))
                 childCount ++;
             }
-            if (childCount > sibCount){
+            if (childCount >= sibCount){
               Message m = Message.builder("validator.descendantCount.overCount")
                   .fromNode(n)
                   .addNote("Tag " + parent_name + " cannot have more than " + count + " " + n.getName() + " children.")
@@ -99,12 +99,12 @@ public class DescendantCountValidator {
           process_start((StartNode) n);
           break;
         case END:
-          StartNode parent = parentStack.peekFirst();
-          if (parent != null && n.getName().toLowerCase().equals(parent.getName().toLowerCase())){
-            parentStack.pop();
-            childStack.pop();
+          StartNode parent = parentStack.get_first(n);
+          if (parent != null){
+            int index = parentStack.indexOf(parent);
+            parentStack.remove(index);
+            childStack.remove(index);
           }
-          break;
       }
     }
   }
