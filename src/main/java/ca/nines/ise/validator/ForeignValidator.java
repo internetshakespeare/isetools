@@ -18,6 +18,8 @@ package ca.nines.ise.validator;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.StringWriter;
 import java.net.URL;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ import java.util.List;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
+import org.apache.commons.io.IOUtils;
 
 import ca.nines.ise.annotation.ErrorCode;
 import ca.nines.ise.dom.DOM;
@@ -34,6 +37,7 @@ import ca.nines.ise.log.Message;
 import ca.nines.ise.node.Node;
 import ca.nines.ise.node.NodeType;
 import ca.nines.ise.node.StartNode;
+
 /**
  * Ensures FOREIGN tags have valid @lang attributes, with respect to ISO 639-1/3
  * 
@@ -45,12 +49,16 @@ public class ForeignValidator {
   public ForeignValidator(){
     langCodes = new ArrayList<String>();
     try {
-      URL url = getClass().getResource("/data/iso-639-3_Language_Name_Index.tab");
-      File file = new File(url.getPath());
-      CSVParser parser = CSVParser.parse(file, Charset.defaultCharset(), CSVFormat.TDF.withHeader());
+      InputStream in = getClass().getResourceAsStream("/data/iso-639-3_20160115.tab");
+      StringWriter wr = new StringWriter();
+      IOUtils.copy(in, wr);
+      CSVParser parser = CSVParser.parse(wr.toString(), CSVFormat.TDF.withHeader("3", "2B", "2T", "1").withSkipHeaderRecord(true));
       
       for (CSVRecord record : parser){
-        langCodes.add(record.get(0));
+        if (!record.get("3").equals(""))
+          langCodes.add(record.get("3"));
+        if (!record.get("1").equals(""))
+          langCodes.add(record.get("1"));
       }
       
     } catch (IOException e) {
@@ -64,7 +72,12 @@ public class ForeignValidator {
   })
   private void process_start(StartNode n) {
     if (n.hasAttribute("lang")){
-      if (!langCodes.contains(n.getAttribute("lang"))){
+      String code = n.getAttribute("lang");
+      String lang = code;
+      if (code.contains("-")){
+        lang = code.substring(0, code.indexOf('-'));
+      }
+      if (!lang.equals("x") && !langCodes.contains(lang)){
         Message m = Message.builder("validator.foreign.invalidCode")
             .fromNode(n)
             .addNote("Tag " + n.getName() + " has an invalid @lang attribute")
