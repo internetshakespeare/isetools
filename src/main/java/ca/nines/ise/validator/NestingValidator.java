@@ -48,51 +48,50 @@ public class NestingValidator {
     }
     
   ValidatorStack<StartNode> nodeStack;
+  List<StartNode> nestingParents;
   
   @ErrorCode(code = {
       "validator.nesting.redundant"
   })
   private void check_redundant_nesting(StartNode n){
+    StartNode nested = nodeStack.get_first(n);
+    // return if this tag is not nested or if its nesting parent already has a nesting error
+    if (nested == null || nestingParents.contains(nested))
+      return;
+    
     String message = null;
-    StartNode temp = null;
     Tag t = schema.getTag(n.getName());
     
     //if nesting this tag is redundant
     if (t != null && t.getRedundant().equals("yes")){
-      if (is_nested(n) != null)
-        message = "Tag " + n.getName() + " cannot be nested within a " + n.getName() + " tag.";
+      message = "Tag " + n.getName() + " cannot have " + n.getName() + " children.";
     }
     
     switch(n.getName().toLowerCase()){
       //special cases
       case "font":
-        if ((temp = is_nested(n)) != null &&
-            temp.hasAttribute("size") &&
+        if (nested.hasAttribute("size") &&
             n.hasAttribute("size") &&
-            temp.getAttribute("size").equals(n.getAttribute("size"))){
+            nested.getAttribute("size").equals(n.getAttribute("size"))){
             message = "Tag FONT cannot be nested within a FONT tag of the same size";
         }
         break;
       case "foreign":
-        if ((temp = is_nested(n)) != null && 
-            temp.hasAttribute("lang") &&
+        if (nested.hasAttribute("lang") &&
             n.hasAttribute("lang") &&
-            temp.getAttribute("lang").equals(n.getAttribute("lang"))){
+            nested.getAttribute("lang").equals(n.getAttribute("lang"))){
             message = "Tag FOREIGN cannot be nested within a FOREIGN tag of the same language (lang)";
         }
         break;
     }
     if (message != null){
       Message m = Message.builder("validator.nesting.redundant")
-          .fromNode(n)
+          .fromNode(nested)
           .addNote(message)
           .build();
       Log.addMessage(m);
+      nestingParents.add(nested);
     }
-  }
-  
-  private StartNode is_nested(Node n){
-    return nodeStack.get_first(n);
   }
 
   @ErrorCode(code = {
@@ -162,6 +161,7 @@ public class NestingValidator {
 
   public void validate(DOM dom) {
     nodeStack = new ValidatorStack<StartNode>();
+    nestingParents = new ArrayList<StartNode>();
 
     for (Node n : dom) {
       switch (n.type()) {
