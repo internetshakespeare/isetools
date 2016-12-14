@@ -20,6 +20,7 @@ package ca.nines.ise.log;
 import java.io.OutputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import org.apache.commons.lang3.StringEscapeUtils;
 
 /**
  * Serializes a Log to JSON
@@ -41,7 +42,7 @@ import java.nio.charset.StandardCharsets;
 public class JSONLogSerializer {
 
     private static String escapeString(String s) {
-        return s.replace("\"", "\\\"").replace("\n", "\\\\n");
+        return StringEscapeUtils.escapeJson(s);
     }
 
     public static String serializeToJSON(Log l) {
