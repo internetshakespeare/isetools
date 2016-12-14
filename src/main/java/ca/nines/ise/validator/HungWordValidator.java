@@ -35,78 +35,32 @@ import ca.nines.ise.node.TextNode;
  * @author Malcolm Moran <malcolm.moran@outlook.com>
  */
 public class HungWordValidator {
-  Boolean in_hw, after_hw;
-  StartNode last_hw;
+  Boolean after_hw;
   
-  @ErrorCode(code = {
-      "validator.hungWord.endOfLine"
-  })
-  private void process_start(StartNode n){
-    if (n.getName().toLowerCase().equals("hw")){
-      in_hw = true;
-      last_hw = n;
-    }
-    if (after_hw){
-      Message m = Message.builder("validator.hungWord.endOfLine")
-          .fromNode(last_hw)
-          .addNote("HW tags must be at the end of a line")
-          .build();
-      Log.addMessage(m);
-    }
-  }
-
-  @ErrorCode(code = {
-      "validator.hungWord.endOfLine"
-  })
-  private void process_empty(EmptyNode n){
-    if (after_hw){
-      Message m = Message.builder("validator.hungWord.endOfLine")
-          .fromNode(last_hw)
-          .addNote("HW tags must be at the end of a line")
-          .build();
-      Log.addMessage(m);
-    }
-  }
-  
-  @ErrorCode(code = {
-      "validator.hungWord.endOfLine"
-  })
   private void process_end(EndNode n) {
-    // if last_hw is null (ie. there was no start tag, we'll let the tag_balance_validator attach an error
-    if (n.getName().toLowerCase().equals("hw") && last_hw != null){
-      in_hw = false;
+    if (n.getName().toLowerCase().equals("hw"))
       after_hw = true;
-    }
   }
   
   private void process_text(TextNode n) {
-    if (n.getText().contains("\n")){
-      in_hw = false;
+    if (n.getText().contains("\n") && n.getText().trim().equals(""))
       after_hw = false;
-    } else if (after_hw){
+    else if (after_hw && !n.getText().trim().equals("")){
       Message m = Message.builder("validator.hungWord.endOfLine")
-          .fromNode(last_hw)
-          .addNote("HW tags must be at the end of a line")
+          .fromNode(n)
+          .addNote("Text cannot follow an HW tag on the same line")
           .build();
       Log.addMessage(m);
     }
   }
 
   public void validate(DOM dom) {
-    in_hw = false;
     after_hw = false;
-    last_hw = null;
     
     for (Node n : dom) {
       switch (n.type()) {
         case END:
           process_end((EndNode) n);
-          break;
-        case START:
-          process_start((StartNode) n);
-          break;        
-        case EMPTY:
-          process_empty((EmptyNode) n);
           break;
         case TEXT:
           process_text((TextNode) n);

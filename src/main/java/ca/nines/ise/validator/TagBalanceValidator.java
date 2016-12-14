@@ -50,31 +50,18 @@ public class TagBalanceValidator {
       nodeStack.pop();
       return;
     }
+    
+    StartNode start = nodeStack.get_first(n);
   
-    // this is a split tag.
-    Boolean hasStart = false;
-    ArrayDeque<StartNode> splitStack = new ArrayDeque<>();
-    while (nodeStack.size() >= 1) {
-      StartNode start = nodeStack.pop();
-      if (start.getName().toLowerCase().equals(n.getName().toLowerCase())) {
-        hasStart = true;
-        break; // while.
-      }
-      splitStack.push(start);
-    }
-  
-    if (!hasStart) {
+    if (start == null) {
       Message m = Message.builder("validator.tagBalance.missing_start_tag")
               .fromNode(n)
               .addNote("Cannot find start tag that corresponds to end tag " + n.getName())
               .build();
       Log.addMessage(m);
+    }else{
+      nodeStack.remove_first(n);
     }
-  
-    while (splitStack.size() >= 1) {
-      nodeStack.push(splitStack.pop());
-    }
-  
   }
   
   private void process_start(StartNode n) {

@@ -94,7 +94,7 @@
 	<![CDATA[This tag is not the descendent of a required parent]]>
     </message>
     <message code="validator.nesting.redundant" severity="warning">
-	<![CDATA[This tag is redundantly nested]]>
+	<![CDATA[This tag has redundantly nested children]]>
     </message>
     
     <message code="validator.splitLine.invalid" severity="error">
@@ -125,13 +125,13 @@
     <![CDATA[End tags do not take attributes.]]>
     </message>
     <message code="validator.tag.endempty" severity="warning">
-    <![CDATA[Empty tag should be empty.]]>
+    <![CDATA[Self-closing tag should be empty.]]>
     </message>
     <message code="validator.tag.notempty" severity="error">
-    <![CDATA[Empty tag should be start/end tags.]]>
+    <![CDATA[Self-closing tag should be start/end tags.]]>
     </message>
     <message code="validator.tag.startempty" severity="warning">
-    <![CDATA[Start tag should be empty tag.]]>
+    <![CDATA[Start tag should be self-closing.]]>
     </message>
     <message code="validator.tag.unknown" severity="error">
     <![CDATA[This tag is not defined in the schema.]]>
@@ -161,7 +161,7 @@
     </message>
     
     <message code="validator.hungWord.endOfLine" severity="error">
-    <![CDATA[HW tags may only be at the end of a line.]]>
+    <![CDATA[Non-whitespace text may not follow an HW tag on the same line.]]>
     </message>
     
     <message code="validator.descendantCount.overCount" severity="error">

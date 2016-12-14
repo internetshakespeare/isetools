@@ -486,7 +486,7 @@
     </tag>
     <tag name="PN" where="oldspelling" xml_unparsed_text="yes" noSplit="SIG, RT, PN, CW" redundant="yes">
       <desc><![CDATA[Page number as printed.]]></desc>
-      <attribute name="n" type="number" optional="yes" renumber="no" depreciated="Use @n on the PAGE element instead.">
+      <attribute name="n" type="number" optional="yes" renumber="no">
         <desc><![CDATA[Actual page number where it differs from the printed number.]]></desc>
       </attribute>
     </tag>
