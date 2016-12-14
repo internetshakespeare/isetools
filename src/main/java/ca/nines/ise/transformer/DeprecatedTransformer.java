@@ -38,10 +38,12 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   String last_tag;
   StartNode this_page;
+  LinkedList<String> startStack;
   
   public DOM transform(DOM dom) throws IOException {
     last_tag = "";
     this_page = null;
+    startStack = new LinkedList<String>();
     return super.transform(dom);
   }
   
@@ -51,11 +53,21 @@ public class DeprecatedTransformer extends IdentityTransform {
     if (n.getText().trim().equals("") && 
         (last_tag.toLowerCase().equals("link") || 
         last_tag.toLowerCase().equals("meta") || 
-        last_tag.toLowerCase().equals("iseheader")) ||
-        last_tag.toLowerCase().equals("sig"))
+        last_tag.toLowerCase().equals("iseheader")))
       return;
     else
         dom.add(n);
+  }
+  
+  private boolean end_tag(EndNode n){
+    for (String s : startStack){
+      if (s.toLowerCase().equals(n.getName().toLowerCase())){
+        startStack.remove(s);
+        return true;
+      }
+    }
+    defaultTransform(n);
+    return false;
   }
   
   @Override
@@ -86,6 +98,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
  
   public void end_blockquote(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("QUOTE");  
     dom.add(n);
@@ -93,6 +107,8 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void end_fontgroup(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("FONT");
     dom.add(n);
@@ -100,6 +116,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h1(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -107,6 +125,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h2(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -114,6 +134,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h3(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -121,6 +143,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h4(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -128,6 +152,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h5(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
 	  dom.add(n);
@@ -135,6 +161,8 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_h6(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -153,6 +181,8 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void end_poem(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("DIV");
     dom.add(n);
@@ -160,41 +190,60 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void end_prosequote(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("QUOTE");  
     dom.add(n);
+    EndNode mode = new  EndNode("MODE");
+    dom.add(mode);
   }
 
   
   public void end_section(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("DIV");
     dom.add(n);
   }
   
   public void end_sig(EndNode n){
-    if (this_page == null)
-      defaultTransform(n);
-    else
-      last_tag = n.getName();
+    if (!end_tag(n))
+      return;
+    last_tag = n.getName();
+    dom.add(n);
   }
-
   
   public void end_titlehead(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("TITLE");
     dom.add(n);
   }
 
+  public void end_titlepage(EndNode n) {
+    if (!end_tag(n))
+      return;
+    last_tag = n.getName();
+    n.setName("DIV");
+    dom.add(n);
+  }
   
   public void end_versequote(EndNode n) {
+    if (!end_tag(n))
+      return;
     last_tag = n.getName();
     n.setName("QUOTE");  
     dom.add(n);
+    EndNode mode = new  EndNode("MODE");
+    dom.add(mode);
   }
 
   
   public void start_blockquote(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("QUOTE");  		
     dom.add(n);
@@ -202,6 +251,7 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void start_fontgroup(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("FONT");
     String size = n.getAttribute("n");
@@ -213,6 +263,7 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void start_h1(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -220,6 +271,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_h2(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -227,6 +279,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_h3(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -234,6 +287,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_h4(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -241,6 +295,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_h5(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -248,6 +303,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_h6(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("LD");
     dom.add(n);
@@ -255,6 +311,7 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void start_indent(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     String l = n.getAttribute("n");
     n.deleteAttribute("n");
@@ -271,6 +328,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_linegroup(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     String form = n.getAttribute("form");
     n.deleteAttribute("form");
@@ -285,6 +343,7 @@ public class DeprecatedTransformer extends IdentityTransform {
   }
   
   public void start_poem(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("DIV");
     dom.add(n);
@@ -292,8 +351,9 @@ public class DeprecatedTransformer extends IdentityTransform {
   
   
   public void start_prosequote(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
-    EmptyNode en = new EmptyNode();
+    StartNode en = new StartNode();
   	en.setName("MODE");
   	en.setAttribute("t", "prose");
   	dom.add(en);
@@ -303,6 +363,7 @@ public class DeprecatedTransformer extends IdentityTransform {
 
   
   public void start_section(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
   	n.setName("DIV");
   	String name = n.getAttribute("n");
@@ -313,35 +374,40 @@ public class DeprecatedTransformer extends IdentityTransform {
   }
   
   public void start_sig(StartNode n) {
-    if (this_page == null)
-      defaultTransform(n);
-    else{
+    startStack.push(n.getName());
+    if (this_page != null){
       last_tag = n.getName();
       String s = n.getAttribute("n");
-      if (s != null)
-        this_page.setAttribute("sig", s);
+      if (s != null){
+        if (!this_page.hasAttribute("sig")){
+          this_page.setAttribute("sig", s);
+          n.deleteAttribute("n");
+        }else if (this_page.getAttribute("sig").equals(s))
+          n.deleteAttribute("n");
+      }
     }
+    defaultTransform(n);
   }
-
   
   public void start_titlehead(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
     n.setName("TITLE");
     dom.add(n);
   }
-
   
   public void start_titlepage(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
   	n.setName("DIV");
   	n.setAttribute("name", "Title page");
     dom.add(n);
   }
 
-  
   public void start_versequote(StartNode n) {
+    startStack.push(n.getName());
     last_tag = n.getName();
-  	EmptyNode en = new EmptyNode();
+  	StartNode en = new StartNode();
   	en.setName("MODE");
   	en.setAttribute("t", "verse");
   	dom.add(en);
