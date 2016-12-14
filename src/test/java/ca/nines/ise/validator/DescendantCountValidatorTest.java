@@ -53,4 +53,26 @@ public class DescendantCountValidatorTest extends ValidatorTestBase{
     validator.validate(getDOM("<WORK><s><sp>x</sp></s><s><sp>y</sp></s></WORK>"));
     checkLog();
   }
+
+  /**
+   * Test that it's correct even if the parent spans tags
+   */
+  @Test
+  public void TestSpanTagsOkay() throws Exception {
+    //should be no problems
+    setUp();
+    validator.validate(getDOM("<WORK><x><s><sp>x</sp></x></s><s><sp>y</sp></s></WORK>"));
+    checkLog();
+  }
+
+  /**
+   * Test that it's correct even if the parent spans tags
+   */
+  @Test
+  public void TestSpanTagsError() throws Exception {
+    //should be no problems
+    setUp();
+    validator.validate(getDOM("<WORK><x><s><sp>x</sp></x><sp>y</sp></s></WORK>"));
+    checkLog(new String[]{"validator.descendantCount.overCount"});
+  }
 }
