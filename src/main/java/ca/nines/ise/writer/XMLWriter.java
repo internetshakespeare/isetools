@@ -91,6 +91,7 @@ public class XMLWriter extends Writer{
 		private Boolean endSplitLine;
 		private String align;
 		private List<Element> real_lines;
+    private List<String> ended_elements;
 		private String current_act;
 		private String current_scene;
 
@@ -114,6 +115,7 @@ public class XMLWriter extends Writer{
 			real_lines = new ArrayList<Element>();
 			current_act = null;
 			current_scene = null;
+			ended_elements = new ArrayList<String>();
 		}
 		
 		public void set_scene(Element e){
@@ -199,8 +201,7 @@ public class XMLWriter extends Writer{
 				if (INLINE_TAGS.contains(e.getLocalName().toLowerCase()))
           ensure_in_line();
 				if (e.getLocalName().equals("s")){
-				  Boolean created = new_speech(false);
-				  if (!created)
+				  if (!new_speech(false))
 				    s = e;
 				}else
 				  start_element(e);
@@ -401,6 +402,8 @@ public class XMLWriter extends Writer{
 		 */
 		public void end_till_line_and_start(Element e) {
 			end_till_line();
+			if (!is_lineParent(e.getLocalName()))
+			  ended_elements.add(e.getLocalName());
 			start_element(e);
 		}
 		
@@ -721,18 +724,15 @@ public class XMLWriter extends Writer{
 			Element e = super.pop();
 			while (!e.getLocalName().equals(name))
 				e = super.pop();
-			// renew anything being renewed if closing element in end_till_line_and_start
-			if (is_typeface(name))
-				renew_elements();
-			else if (is_lineParent(name)){
+			if (is_lineParent(name)){
 			  // splitline doesn't get its own renewing stack
 			  if (!name.equals("splitline")){
 			    renewing.pop();
 			    renew_elements();
 			  }
 			}
-			else if (is_flatten(name))
-				renew_elements();
+			else if (ended_elements.remove(name) || is_flatten(name) || is_typeface(name))
+			  renew_elements();
 		}
 
 		/**
@@ -926,7 +926,7 @@ public class XMLWriter extends Writer{
 		/**
 		 * Must start a line before starting a new speech
 		 * 
-		 * Starts a new speech element Speech is automatically given an "n"
+		 * Starts a new speech element. Speech is automatically given an "n"
 		 * attribute to differentiate speeches
 		 */
 		public Boolean new_speech(Boolean real) {
@@ -1234,10 +1234,7 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
     case "MARG":
-      if (xmlStack.in_line())
-        xmlStack.end_till_line_and_start(set_attributes(node, e));
-      else
-        xmlStack.start_element(set_attributes(node, e));
+      xmlStack.end_till_line_and_start(set_attributes(node, e));
     break;    
 		case "SECTION":
       xmlStack.end_line();
