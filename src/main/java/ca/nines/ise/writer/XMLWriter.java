@@ -94,6 +94,7 @@ public class XMLWriter extends Writer{
     private List<String> ended_elements;
 		private String current_act;
 		private String current_scene;
+		private int speech_offset;
 
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
@@ -116,6 +117,7 @@ public class XMLWriter extends Writer{
 			current_act = null;
 			current_scene = null;
 			ended_elements = new ArrayList<String>();
+			speech_offset = 0;
 		}
 		
 		public void set_scene(Element e){
@@ -597,7 +599,7 @@ public class XMLWriter extends Writer{
 		private int get_last_speech_index() {
 			Element s = get_last_tag("s");
 			if (s == null || s.getAttribute("k") == null)
-				return 0;
+				return 0 + speech_offset;
 			return Integer.valueOf(s.getAttributeValue("k"));
 		}
 
@@ -923,6 +925,14 @@ public class XMLWriter extends Writer{
 				append_to_work(e, 0);
 		}
 
+		public int get_speech_k(){
+		  return get_last_speech_index();
+		}
+		
+		public void set_speech_offset(int k){
+		  speech_offset = k;
+		}
+		
 		/**
 		 * Must start a line before starting a new speech
 		 * 
@@ -1502,11 +1512,21 @@ public class XMLWriter extends Writer{
 	  Element e = new Element("work", DOC_NS);
 	  Document doc = new Document(e);
     XMLStack addStack = new XMLStack(doc);
+    addStack.set_speech_offset(xmlStack.get_speech_k());
     addStack.push(e);
     //tags between the start and end tags of this ADD
     Node end_tag = dom.findForward(node, node.getName());
     List<Node> nodes = dom.get_between(node,end_tag);
+    boolean speech_started = false;
     for(Node n : nodes){
+      if (n.getName().equals("S")){
+        if (n.type().equals(NodeType.START)) {
+          speech_started = true;
+        }
+        else if (n.type().equals(NodeType.END)) {
+          speech_started = false;
+        }
+      }
       parse_node(n,addStack);
     }
     //all elements within add, parsed
@@ -1546,6 +1566,12 @@ public class XMLWriter extends Writer{
         add.appendChild(child);
         head.appendChild(add);
       }
+    }
+    if (speech_started){
+      if (xmlStack.in_line())
+        xmlStack.new_speech(false);
+      else
+        xmlStack.renew("s", null);
     }
     return end_tag;
   }
