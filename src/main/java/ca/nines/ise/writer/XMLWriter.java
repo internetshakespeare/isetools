@@ -1533,6 +1533,7 @@ public class XMLWriter extends Writer{
     Elements elements = doc.getRootElement().getChildElements();
     //head of real stack
     Element head = xmlStack.peekFirst();
+    boolean first_line = true;
     for (int i=0; i<elements.size(); i++){
       elements.get(i).detach();
       Element child = elements.get(i);
@@ -1558,8 +1559,14 @@ public class XMLWriter extends Writer{
           if (i == elements.size() - 1)
             xmlStack.push(line);
         } else {
+          if (head.getLocalName().equals("l") && !first_line){
+            xmlStack.end_line();
+            xmlStack.new_line(new EmptyNode(), false);
+            head = xmlStack.peekFirst();
+          }
           child = set_attributes((StartNode)node,child);
           head.appendChild(child);
+          first_line = false;
         }
       }else{
         Element add = set_attributes((StartNode)node, addStack.new_element("add"));
