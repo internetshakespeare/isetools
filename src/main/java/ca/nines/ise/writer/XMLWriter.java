@@ -1251,10 +1251,6 @@ public class XMLWriter extends Writer{
 					new Attribute[] { new Attribute("t", "formatting") }));
 			break;
 		case "IEMBED":
-		  xmlStack.ensure_in_line();
-			xmlStack.start_element(set_attributes(node,
-					xmlStack.new_element(xml_name, LINK_NS)));
-			break;
 		case "ILINK":
 			xmlStack.ensure_in_line();
 			xmlStack.start_element(set_attributes(node,
@@ -1420,9 +1416,6 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
     case "IEMBED":
-      xmlStack.empty_element(set_attributes(node,
-          xmlStack.new_element(xml_name, LINK_NS)));
-      break;
     case "ILINK":
       xmlStack.ensure_in_line();
       xmlStack.empty_element(set_attributes(node,
