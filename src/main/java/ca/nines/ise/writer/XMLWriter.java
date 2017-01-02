@@ -31,6 +31,7 @@ import ca.nines.ise.node.chr.DigraphCharNode;
 import ca.nines.ise.node.chr.LigatureCharNode;
 import ca.nines.ise.node.chr.NestedCharNode;
 import ca.nines.ise.schema.Schema;
+import ca.nines.ise.schema.Tag;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -198,7 +199,7 @@ public class XMLWriter extends Writer{
 		 */
 		private void renew_elements() {
 		  Element s = null;
-			while (!get_renew().isEmpty()) {
+			while (get_renew() != null && !get_renew().isEmpty()) {
 				Element e = get_renew().pop();
 				if (INLINE_TAGS.contains(e.getLocalName().toLowerCase()))
           ensure_in_line();
@@ -310,10 +311,10 @@ public class XMLWriter extends Writer{
 			if (!in_line())
 				return;
 			// pop out of all till and including line
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("l")) {
 				renew(e.getLocalName(),get_attributes(e));
-				e = super.pop();
+				e = pop_element();
 			}
 			// if the l tag we just closed contains only iembeds
 			if (contains_only(e,"iembed") && !real_lines.contains(e)){
@@ -381,21 +382,28 @@ public class XMLWriter extends Writer{
 		}
 
 		/**
-		 * Ends all children until the current line, but does not end the line.
-		 * Saves closed children in RENEWABLE
+		 * Ends all children until the given tag.
+		 * Saves closed descendants in RENEWABLE
 		 */
-		private void end_till_line() {
-			if (!in_line())
-				return;
-			// pop out of all till line
-			Element e = super.pop();
-			while (!e.getLocalName().equals("l")) {
+		private void end_till_tag(String name) {
+			// pop out of all till given tag
+			Element e = pop_element();
+			while (!e.getLocalName().equals(name)) {
 				renew(e.getLocalName(),get_attributes(e));
-				e = super.pop();
+				e = pop_element();
 			}
 			super.push(e);
 		}
-
+		
+    /**
+     * Ends all children until the current line, but does not end the line.
+     * Saves closed descendants in RENEWABLE
+     */
+    private void end_till_line() {
+      if (in_line())
+        end_till_tag("l");
+    }
+    
 		/**
 		 * Ends all children until the current line and starts a new element
 		 * 
@@ -408,6 +416,27 @@ public class XMLWriter extends Writer{
 			  ended_elements.add(e.getLocalName());
 			start_element(e);
 		}
+		
+		public void end_tag_and_renew_descendants(String name){
+		  if (!in_tag(name))
+		    return;
+		  renewing.push(new LinkedList<Element>());
+		  end_till_tag(name);
+		  pop_element();
+      renew_elements();
+      renewing.pop();
+		}
+
+    /**
+     * wraps everything until the current line in the given element
+     */
+    private void wrap_till_line(Element e) {
+      renewing.push(new LinkedList<Element>());
+      end_till_line();
+      start_element(e);
+      renew_elements();
+      renewing.pop();
+    }
 		
 		private Boolean check_whitespace(Element last_line){
 			if (last_line == null)
@@ -430,7 +459,7 @@ public class XMLWriter extends Writer{
 			if (in_page())
 				end_page();
 			if (in_page_child())
-				pop();
+				pop_element();
 			Boolean needs_whitespace = check_whitespace(get_last_tag("l"));
 			Boolean new_ms = false;
 			for (String name : node.getAttributeNames()) {
@@ -486,9 +515,9 @@ public class XMLWriter extends Writer{
 			if (!in_page())
 				return;
 			// pop out of all till and including page
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("page"))
-				e = super.pop();
+				e = pop_element();
 			// reset page children
 			page_children = new ArrayList<String>();
 		}
@@ -500,9 +529,9 @@ public class XMLWriter extends Writer{
 			if (!in_page())
 				return;
 			// pop out of all till line
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("page"))
-				e = super.pop();
+				e = pop_element();
 			super.push(e);
 		}
 
@@ -608,9 +637,9 @@ public class XMLWriter extends Writer{
 		public void append_before_line(){
 			if (in_line()){
 				Element line_parent = get_nearest_of(LINE_PARENTS);
-				line_parent.insertChild(pop(), line_parent.getChildCount()-1);
+				line_parent.insertChild(pop_element(), line_parent.getChildCount()-1);
 			} else {
-				Element e = pop();
+				Element e = pop_element();
 				peekFirst().appendChild(e);
 			}
 		}
@@ -688,13 +717,13 @@ public class XMLWriter extends Writer{
 		public void start_element(Element e) {
 			if (is_typeface(e.getLocalName()) && is_typeface(peekFirst().getLocalName())){
 			  renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+				pop_element();
 			} else if (is_lineParent(e.getLocalName()) && is_inline(peekFirst().getLocalName())){
 			  renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+			  pop_element();
 			} else if (is_flatten(e.getLocalName()) && is_flatten(peekFirst().getLocalName())){
 				renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+				pop_element();
 			} 
 			if (e.getLocalName().equals("quote")){
 			  peekFirst().appendChild(e);
@@ -706,6 +735,19 @@ public class XMLWriter extends Writer{
 				renewing.push(new LinkedList<Element>());
 			peekFirst().appendChild(e);
 			push(e);
+		}
+		
+		private Element pop_element(){
+		  Element e = super.pop();
+		  
+		  Tag t = schema.getTag(e.getLocalName());
+	    
+	    //if this tag may not be empty and it is empty, remove it
+	    if (t != null && !t.maybeEmpty() && e.getChildCount() == 0){
+	      e.detach();
+	    }
+		  
+		  return e;
 		}
 		
 		/**
@@ -723,9 +765,15 @@ public class XMLWriter extends Writer{
 			// if not in this tag or its descendants, return (happens if being renewed)
 			if (!in_tag(name))
 				return;
-			Element e = super.pop();
-			while (!e.getLocalName().equals(name))
-				e = super.pop();
+			
+			if (name.equals("s"))
+			  end_tag_and_renew_descendants(name);
+			else{
+			  Element e = pop_element();
+			  while (!e.getLocalName().equals(name))
+	        e = pop_element();
+			}
+			
 			if (is_lineParent(name)){
 			  // splitline doesn't get its own renewing stack
 			  if (!name.equals("splitline")){
@@ -939,14 +987,12 @@ public class XMLWriter extends Writer{
 		 * Starts a new speech element. Speech is automatically given an "n"
 		 * attribute to differentiate speeches
 		 */
-		public Boolean new_speech(Boolean real) {
+		public Boolean new_speech(boolean real) {
 		  //never a case for recursive speeches
-		  if (in_tag("s"))
+		  //don't start a speech if not in a line
+		  if (in_tag("s") || !in_tag("l"))
 		    return false;
-		  /* if not in a line, don't start a speech */
-		  if(!peekFirst().getLocalName().equals("l")){
-		    return false;
-		  }
+		  
 			Element e = new_element("s");
   		if (real)
   			e.addAttribute(new Attribute("k", String
@@ -954,7 +1000,12 @@ public class XMLWriter extends Writer{
   		else
         e.addAttribute(new Attribute("k", String
             .valueOf(get_last_speech_index())));
-  		start_element(e);
+
+      /* if the direct parent is not a line, wrap the current stack in a speech */
+      if(!peekFirst().getLocalName().equals("l"))
+        wrap_till_line(e);
+      else
+        start_element(e);
   		return true;
 		}
 
@@ -1325,10 +1376,12 @@ public class XMLWriter extends Writer{
 			xmlStack.start_element(set_attributes(node, e));
 			break;
 		case "PAGE":
+      xmlStack.end_line();
+      xmlStack.empty_element(set_attributes(node, e));
+      break;
 		case "LINEGROUP":
 		  xmlStack.end_line();
 			xmlStack.start_element(set_attributes(node, e));
-			xmlStack.end_page();
 			break;
     case "VERSEQUOTE":
 		case "PROSEQUOTE":
