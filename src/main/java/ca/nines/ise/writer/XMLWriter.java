@@ -31,6 +31,7 @@ import ca.nines.ise.node.chr.DigraphCharNode;
 import ca.nines.ise.node.chr.LigatureCharNode;
 import ca.nines.ise.node.chr.NestedCharNode;
 import ca.nines.ise.schema.Schema;
+import ca.nines.ise.schema.Tag;
 
 import java.io.IOException;
 import java.io.PrintStream;
@@ -91,8 +92,10 @@ public class XMLWriter extends Writer{
 		private Boolean endSplitLine;
 		private String align;
 		private List<Element> real_lines;
+    private List<String> ended_elements;
 		private String current_act;
 		private String current_scene;
+		private int speech_offset;
 
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
@@ -114,6 +117,8 @@ public class XMLWriter extends Writer{
 			real_lines = new ArrayList<Element>();
 			current_act = null;
 			current_scene = null;
+			ended_elements = new ArrayList<String>();
+			speech_offset = 0;
 		}
 		
 		public void set_scene(Element e){
@@ -194,13 +199,12 @@ public class XMLWriter extends Writer{
 		 */
 		private void renew_elements() {
 		  Element s = null;
-			while (!get_renew().isEmpty()) {
+			while (get_renew() != null && !get_renew().isEmpty()) {
 				Element e = get_renew().pop();
 				if (INLINE_TAGS.contains(e.getLocalName().toLowerCase()))
           ensure_in_line();
 				if (e.getLocalName().equals("s")){
-				  Boolean created = new_speech(false);
-				  if (!created)
+				  if (!new_speech(false))
 				    s = e;
 				}else
 				  start_element(e);
@@ -307,10 +311,10 @@ public class XMLWriter extends Writer{
 			if (!in_line())
 				return;
 			// pop out of all till and including line
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("l")) {
 				renew(e.getLocalName(),get_attributes(e));
-				e = super.pop();
+				e = pop_element();
 			}
 			// if the l tag we just closed contains only iembeds
 			if (contains_only(e,"iembed") && !real_lines.contains(e)){
@@ -378,21 +382,28 @@ public class XMLWriter extends Writer{
 		}
 
 		/**
-		 * Ends all children until the current line, but does not end the line.
-		 * Saves closed children in RENEWABLE
+		 * Ends all children until the given tag.
+		 * Saves closed descendants in RENEWABLE
 		 */
-		private void end_till_line() {
-			if (!in_line())
-				return;
-			// pop out of all till line
-			Element e = super.pop();
-			while (!e.getLocalName().equals("l")) {
+		private void end_till_tag(String name) {
+			// pop out of all till given tag
+			Element e = pop_element();
+			while (!e.getLocalName().equals(name)) {
 				renew(e.getLocalName(),get_attributes(e));
-				e = super.pop();
+				e = pop_element();
 			}
 			super.push(e);
 		}
-
+		
+    /**
+     * Ends all children until the current line, but does not end the line.
+     * Saves closed descendants in RENEWABLE
+     */
+    private void end_till_line() {
+      if (in_line())
+        end_till_tag("l");
+    }
+    
 		/**
 		 * Ends all children until the current line and starts a new element
 		 * 
@@ -401,8 +412,31 @@ public class XMLWriter extends Writer{
 		 */
 		public void end_till_line_and_start(Element e) {
 			end_till_line();
+			if (!is_lineParent(e.getLocalName()))
+			  ended_elements.add(e.getLocalName());
 			start_element(e);
 		}
+		
+		public void end_tag_and_renew_descendants(String name){
+		  if (!in_tag(name))
+		    return;
+		  renewing.push(new LinkedList<Element>());
+		  end_till_tag(name);
+		  pop_element();
+      renew_elements();
+      renewing.pop();
+		}
+
+    /**
+     * wraps everything until the current line in the given element
+     */
+    private void wrap_till_line(Element e) {
+      renewing.push(new LinkedList<Element>());
+      end_till_line();
+      start_element(e);
+      renew_elements();
+      renewing.pop();
+    }
 		
 		private Boolean check_whitespace(Element last_line){
 			if (last_line == null)
@@ -425,7 +459,7 @@ public class XMLWriter extends Writer{
 			if (in_page())
 				end_page();
 			if (in_page_child())
-				pop();
+				pop_element();
 			Boolean needs_whitespace = check_whitespace(get_last_tag("l"));
 			Boolean new_ms = false;
 			for (String name : node.getAttributeNames()) {
@@ -481,9 +515,9 @@ public class XMLWriter extends Writer{
 			if (!in_page())
 				return;
 			// pop out of all till and including page
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("page"))
-				e = super.pop();
+				e = pop_element();
 			// reset page children
 			page_children = new ArrayList<String>();
 		}
@@ -495,9 +529,9 @@ public class XMLWriter extends Writer{
 			if (!in_page())
 				return;
 			// pop out of all till line
-			Element e = super.pop();
+			Element e = pop_element();
 			while (!e.getLocalName().equals("page"))
-				e = super.pop();
+				e = pop_element();
 			super.push(e);
 		}
 
@@ -594,7 +628,7 @@ public class XMLWriter extends Writer{
 		private int get_last_speech_index() {
 			Element s = get_last_tag("s");
 			if (s == null || s.getAttribute("k") == null)
-				return 0;
+				return 0 + speech_offset;
 			return Integer.valueOf(s.getAttributeValue("k"));
 		}
 
@@ -603,9 +637,9 @@ public class XMLWriter extends Writer{
 		public void append_before_line(){
 			if (in_line()){
 				Element line_parent = get_nearest_of(LINE_PARENTS);
-				line_parent.insertChild(pop(), line_parent.getChildCount()-1);
+				line_parent.insertChild(pop_element(), line_parent.getChildCount()-1);
 			} else {
-				Element e = pop();
+				Element e = pop_element();
 				peekFirst().appendChild(e);
 			}
 		}
@@ -683,13 +717,13 @@ public class XMLWriter extends Writer{
 		public void start_element(Element e) {
 			if (is_typeface(e.getLocalName()) && is_typeface(peekFirst().getLocalName())){
 			  renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+				pop_element();
 			} else if (is_lineParent(e.getLocalName()) && is_inline(peekFirst().getLocalName())){
 			  renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+			  pop_element();
 			} else if (is_flatten(e.getLocalName()) && is_flatten(peekFirst().getLocalName())){
 				renew(peekFirst().getLocalName(),get_attributes(peekFirst()));
-				pop();
+				pop_element();
 			} 
 			if (e.getLocalName().equals("quote")){
 			  peekFirst().appendChild(e);
@@ -701,6 +735,19 @@ public class XMLWriter extends Writer{
 				renewing.push(new LinkedList<Element>());
 			peekFirst().appendChild(e);
 			push(e);
+		}
+		
+		private Element pop_element(){
+		  Element e = super.pop();
+		  
+		  Tag t = schema.getTag(e.getLocalName());
+	    
+	    //if this tag may not be empty and it is empty, remove it
+	    if (t != null && !t.maybeEmpty() && e.getChildCount() == 0){
+	      e.detach();
+	    }
+		  
+		  return e;
 		}
 		
 		/**
@@ -718,21 +765,24 @@ public class XMLWriter extends Writer{
 			// if not in this tag or its descendants, return (happens if being renewed)
 			if (!in_tag(name))
 				return;
-			Element e = super.pop();
-			while (!e.getLocalName().equals(name))
-				e = super.pop();
-			// renew anything being renewed if closing element in end_till_line_and_start
-			if (is_typeface(name))
-				renew_elements();
-			else if (is_lineParent(name)){
+			
+			if (name.equals("s"))
+			  end_tag_and_renew_descendants(name);
+			else{
+			  Element e = pop_element();
+			  while (!e.getLocalName().equals(name))
+	        e = pop_element();
+			}
+			
+			if (is_lineParent(name)){
 			  // splitline doesn't get its own renewing stack
 			  if (!name.equals("splitline")){
 			    renewing.pop();
 			    renew_elements();
 			  }
 			}
-			else if (is_flatten(name))
-				renew_elements();
+			else if (ended_elements.remove(name) || is_flatten(name) || is_typeface(name))
+			  renew_elements();
 		}
 
 		/**
@@ -923,20 +973,26 @@ public class XMLWriter extends Writer{
 				append_to_work(e, 0);
 		}
 
+		public int get_speech_k(){
+		  return get_last_speech_index();
+		}
+		
+		public void set_speech_offset(int k){
+		  speech_offset = k;
+		}
+		
 		/**
 		 * Must start a line before starting a new speech
 		 * 
-		 * Starts a new speech element Speech is automatically given an "n"
+		 * Starts a new speech element. Speech is automatically given an "n"
 		 * attribute to differentiate speeches
 		 */
-		public Boolean new_speech(Boolean real) {
+		public Boolean new_speech(boolean real) {
 		  //never a case for recursive speeches
-		  if (in_tag("s"))
+		  //don't start a speech if not in a line
+		  if (in_tag("s") || !in_tag("l"))
 		    return false;
-		  /* if not in a line, don't start a speech */
-		  if(!peekFirst().getLocalName().equals("l")){
-		    return false;
-		  }
+		  
 			Element e = new_element("s");
   		if (real)
   			e.addAttribute(new Attribute("k", String
@@ -944,7 +1000,12 @@ public class XMLWriter extends Writer{
   		else
         e.addAttribute(new Attribute("k", String
             .valueOf(get_last_speech_index())));
-  		start_element(e);
+
+      /* if the direct parent is not a line, wrap the current stack in a speech */
+      if(!peekFirst().getLocalName().equals("l"))
+        wrap_till_line(e);
+      else
+        start_element(e);
   		return true;
 		}
 
@@ -1234,10 +1295,7 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
     case "MARG":
-      if (xmlStack.in_line())
-        xmlStack.end_till_line_and_start(set_attributes(node, e));
-      else
-        xmlStack.start_element(set_attributes(node, e));
+      xmlStack.end_till_line_and_start(set_attributes(node, e));
     break;    
 		case "SECTION":
       xmlStack.end_line();
@@ -1251,10 +1309,6 @@ public class XMLWriter extends Writer{
 					new Attribute[] { new Attribute("t", "formatting") }));
 			break;
 		case "IEMBED":
-		  xmlStack.ensure_in_line();
-			xmlStack.start_element(set_attributes(node,
-					xmlStack.new_element(xml_name, LINK_NS)));
-			break;
 		case "ILINK":
 			xmlStack.ensure_in_line();
 			xmlStack.start_element(set_attributes(node,
@@ -1322,10 +1376,12 @@ public class XMLWriter extends Writer{
 			xmlStack.start_element(set_attributes(node, e));
 			break;
 		case "PAGE":
+      xmlStack.end_line();
+      xmlStack.empty_element(set_attributes(node, e));
+      break;
 		case "LINEGROUP":
 		  xmlStack.end_line();
 			xmlStack.start_element(set_attributes(node, e));
-			xmlStack.end_page();
 			break;
     case "VERSEQUOTE":
 		case "PROSEQUOTE":
@@ -1420,9 +1476,6 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
     case "IEMBED":
-      xmlStack.empty_element(set_attributes(node,
-          xmlStack.new_element(xml_name, LINK_NS)));
-      break;
     case "ILINK":
       xmlStack.ensure_in_line();
       xmlStack.empty_element(set_attributes(node,
@@ -1512,17 +1565,28 @@ public class XMLWriter extends Writer{
 	  Element e = new Element("work", DOC_NS);
 	  Document doc = new Document(e);
     XMLStack addStack = new XMLStack(doc);
+    addStack.set_speech_offset(xmlStack.get_speech_k());
     addStack.push(e);
     //tags between the start and end tags of this ADD
     Node end_tag = dom.findForward(node, node.getName());
     List<Node> nodes = dom.get_between(node,end_tag);
+    boolean speech_started = false;
     for(Node n : nodes){
+      if (n.getName().equals("S")){
+        if (n.type().equals(NodeType.START)) {
+          speech_started = true;
+        }
+        else if (n.type().equals(NodeType.END)) {
+          speech_started = false;
+        }
+      }
       parse_node(n,addStack);
     }
     //all elements within add, parsed
     Elements elements = doc.getRootElement().getChildElements();
     //head of real stack
     Element head = xmlStack.peekFirst();
+    boolean first_line = true;
     for (int i=0; i<elements.size(); i++){
       elements.get(i).detach();
       Element child = elements.get(i);
@@ -1548,14 +1612,26 @@ public class XMLWriter extends Writer{
           if (i == elements.size() - 1)
             xmlStack.push(line);
         } else {
+          if (head.getLocalName().equals("l") && !first_line){
+            xmlStack.end_line();
+            xmlStack.new_line(new EmptyNode(), false);
+            head = xmlStack.peekFirst();
+          }
           child = set_attributes((StartNode)node,child);
           head.appendChild(child);
+          first_line = false;
         }
       }else{
         Element add = set_attributes((StartNode)node, addStack.new_element("add"));
         add.appendChild(child);
         head.appendChild(add);
       }
+    }
+    if (speech_started){
+      if (xmlStack.in_line())
+        xmlStack.new_speech(false);
+      else
+        xmlStack.renew("s", null);
     }
     return end_tag;
   }
