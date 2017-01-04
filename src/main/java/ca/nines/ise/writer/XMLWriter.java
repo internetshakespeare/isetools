@@ -628,7 +628,7 @@ public class XMLWriter extends Writer{
 		private int get_last_speech_index() {
 			Element s = get_last_tag("s");
 			if (s == null || s.getAttribute("k") == null)
-				return 0 + speech_offset;
+				return speech_offset;
 			return Integer.valueOf(s.getAttributeValue("k"));
 		}
 
