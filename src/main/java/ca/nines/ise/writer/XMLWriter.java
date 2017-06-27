@@ -1212,14 +1212,23 @@ public class XMLWriter extends Writer{
       indent = null;
     }
     
-    
-    
     public void indent()
     {
       if (indent != null && in_line())
       {
          Element indent_element = new_element("space");
          indent_element.addAttribute(new Attribute("l",indent));
+         indent_element.addAttribute(new Attribute("t","formatting"));
+         empty_element(indent_element);
+      }
+    }
+    
+    public void indent(String l)
+    {
+      if (in_line())
+      {
+         Element indent_element = new_element("space");
+         indent_element.addAttribute(new Attribute("l",l));
          indent_element.addAttribute(new Attribute("t","formatting"));
          empty_element(indent_element);
       }
@@ -1510,12 +1519,7 @@ public class XMLWriter extends Writer{
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
 		case "INDENT":
-		  if (xmlStack.in_line())
-		  {
-		    xmlStack.empty_element(set_attributes(node,
-	          xmlStack.new_element("space"),map_put(new_map(), "n", "l"),null,
-	          new Attribute[] { new Attribute("t", "formatting") }));
-		  }
+		  xmlStack.indent(node.getAttribute("l"));
 		  break;
     case "IEMBED":
     case "ILINK":
