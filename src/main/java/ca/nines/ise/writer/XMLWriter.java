@@ -96,6 +96,7 @@ public class XMLWriter extends Writer{
 		private String current_act;
 		private String current_scene;
 		private int speech_offset;
+		private String indent;
 
 		public XMLStack(Document xml) throws IOException, SAXException, ParserConfigurationException, TransformerException {
 		  schema = Schema.defaultSchema();
@@ -119,6 +120,7 @@ public class XMLWriter extends Writer{
 			current_scene = null;
 			ended_elements = new ArrayList<String>();
 			speech_offset = 0;
+			indent = null;
 		}
 		
 		public void set_scene(Element e){
@@ -495,6 +497,8 @@ public class XMLWriter extends Writer{
 			/* if it's a real line, add it to real_lines */
 			if (real)
 			  real_lines.add(e);
+			/* indent if necessary */
+			indent();
 		}
 
 		/* page methods */
@@ -628,7 +632,7 @@ public class XMLWriter extends Writer{
 		private int get_last_speech_index() {
 			Element s = get_last_tag("s");
 			if (s == null || s.getAttribute("k") == null)
-				return 0 + speech_offset;
+				return speech_offset;
 			return Integer.valueOf(s.getAttributeValue("k"));
 		}
 
@@ -1190,6 +1194,45 @@ public class XMLWriter extends Writer{
 				work.removeChild(work.getChildElements().size() - 1);
 		}
 		
+		public void start_indent(TagNode n)
+		{
+		  if (n.hasAttribute("l"))
+		  {
+		    indent = n.getAttribute("l");
+		    indent();
+		  }
+		  else
+		  {
+		    indent = null;
+		  }
+		}
+
+    public void end_indent()
+    {
+      indent = null;
+    }
+    
+    public void indent()
+    {
+      if (indent != null && in_line())
+      {
+         Element indent_element = new_element("space");
+         indent_element.addAttribute(new Attribute("l",indent));
+         indent_element.addAttribute(new Attribute("t","formatting"));
+         empty_element(indent_element);
+      }
+    }
+    
+    public void indent(String l)
+    {
+      if (in_line())
+      {
+         Element indent_element = new_element("space");
+         indent_element.addAttribute(new Attribute("l",l));
+         indent_element.addAttribute(new Attribute("t","formatting"));
+         empty_element(indent_element);
+      }
+    }
 	}
 
 	/**
@@ -1303,10 +1346,7 @@ public class XMLWriter extends Writer{
           xmlStack.new_element("div"),map_put(new_map(), "n", "name"),null,null));
       break;
 		case "INDENT":
-			xmlStack.ensure_in_line();
-			xmlStack.empty_element(set_attributes(node,
-					xmlStack.new_element("space"),map_put(new_map(), "n", "l"),null,
-					new Attribute[] { new Attribute("t", "formatting") }));
+		  xmlStack.start_indent(node);
 			break;
 		case "IEMBED":
 		case "ILINK":
@@ -1426,6 +1466,9 @@ public class XMLWriter extends Writer{
 	private void parse_end(EndNode node, XMLStack xmlStack){
 		String xml_name = node.getName().toLowerCase();
    		switch (node.getName().toUpperCase()){
+      case "INDENT":
+        xmlStack.end_indent();
+        break;
    		case "VERSEQUOTE":
    		case "PROSEQUOTE":
         xmlStack.end_element("quote");
@@ -1475,6 +1518,9 @@ public class XMLWriter extends Writer{
 	private void parse_empty(EmptyNode node, Element e, XMLStack xmlStack) {
 		String xml_name = node.getName().toLowerCase();
 		switch (node.getName().toUpperCase()) {
+		case "INDENT":
+		  xmlStack.indent(node.getAttribute("l"));
+		  break;
     case "IEMBED":
     case "ILINK":
       xmlStack.ensure_in_line();
