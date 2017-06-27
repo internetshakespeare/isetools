@@ -1552,6 +1552,9 @@ public class XMLWriter extends Writer{
 			xmlStack.ensure_in_line();
 			Element sp_e = set_attributes(node, e,
 					map_put(new_map(), "n", "l"), new String[] {"setting"}, null);
+			if (!node.hasAttribute("t")) {
+				e.addAttribute("t", "formatting");
+			}
 			xmlStack.empty_element(sp_e);
 			/* add extra space */
 			sp_e.appendChild(new Text(" "));
