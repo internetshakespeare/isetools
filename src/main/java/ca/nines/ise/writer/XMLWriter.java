@@ -458,8 +458,6 @@ public class XMLWriter extends Writer{
 		 * @node the node from which to create the line element
 		 */
 		public void new_line(TagNode node, Boolean real) {
-			if (in_page())
-				end_page();
 			if (in_page_child())
 				pop_element();
 			Boolean needs_whitespace = check_whitespace(get_last_tag("l"));
@@ -502,41 +500,13 @@ public class XMLWriter extends Writer{
 		}
 
 		/* page methods */
-
-		/**
-		 * Determines if currently in a page tag or one of its children
-		 * 
-		 * @return true if in line, false otherwise
-		 */
-		public boolean in_page() {
-			return in_tag("page");
-		}
-
+		
 		/**
 		 * Ends the current page tag. All children currently open are closed.
 		 */
 		public void end_page() {
-			if (!in_page())
-				return;
-			// pop out of all till and including page
-			Element e = pop_element();
-			while (!e.getLocalName().equals("page"))
-				e = pop_element();
 			// reset page children
-			page_children = new ArrayList<String>();
-		}
-
-		/**
-		 * Ends all children of the current page tag.
-		 */
-		public void end_till_page() {
-			if (!in_page())
-				return;
-			// pop out of all till line
-			Element e = pop_element();
-			while (!e.getLocalName().equals("page"))
-				e = pop_element();
-			super.push(e);
+			page_children.clear();
 		}
 
 		/**
@@ -575,8 +545,6 @@ public class XMLWriter extends Writer{
 			// can't have more than one of any in a single page
 			if (page_child_exists(name))
 				return;
-			// if in a page, close current child
-			end_till_page();
 			// append child to last page
 			page.appendChild(e);
 			super.push(e);
