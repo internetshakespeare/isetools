@@ -1349,8 +1349,11 @@ public class XMLWriter extends Writer{
 		  xmlStack.start_indent(node);
 			break;
 		case "IEMBED":
+      xmlStack.start_element(set_attributes(node,
+          xmlStack.new_element(xml_name, LINK_NS)));
+      break;
 		case "ILINK":
-			xmlStack.ensure_in_line();
+      xmlStack.ensure_in_line();
 			xmlStack.start_element(set_attributes(node,
 					xmlStack.new_element(xml_name, LINK_NS)));
 			break;
@@ -1522,6 +1525,9 @@ public class XMLWriter extends Writer{
 		  xmlStack.indent(node.getAttribute("l"));
 		  break;
     case "IEMBED":
+      xmlStack.empty_element(set_attributes(node,
+          xmlStack.new_element(xml_name, LINK_NS)));
+      break;
     case "ILINK":
       xmlStack.ensure_in_line();
       xmlStack.empty_element(set_attributes(node,
