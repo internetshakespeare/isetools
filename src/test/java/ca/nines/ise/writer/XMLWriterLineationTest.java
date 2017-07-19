@@ -110,7 +110,7 @@ public class XMLWriterLineationTest extends XMLWriterTestBase {
 
     @Test
     public void applyAlignmentToLine() throws SAXException, ParserConfigurationException, TransformerException {
-        Document output = render("<WORK>a<J>\nb</J>\nc</WORK>");
+        Document output = render("<WORK>a<C>\nb</C>\nc</WORK>");
         Nodes lines = output.query("//"+DOC_PREFIX+":l", NS_MAP);
         String a1 = ((Element) lines.get(0)).getAttributeValue("align");
         String a2 = ((Element) lines.get(1)).getAttributeValue("align");
