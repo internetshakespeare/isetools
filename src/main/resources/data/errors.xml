@@ -26,7 +26,7 @@
     <![CDATA[An unknown or unexpected error occured.]]>
     </message>
     <message code="validator.abbr.depreciated" severity="error">
-    <![CDATA[Pipe-style abbreviations are depreciated. Use <ABBR>...</ABBR> instead.]]>
+    <![CDATA[Pipe-style abbreviations are deprecated. Use <ABBR>...</ABBR> instead.]]>
     </message>
     <message code="validator.annotation.badlevel" severity="error">
     <![CDATA[Annotation notes must be level 0, 1, 2, or 3.]]>
@@ -59,7 +59,7 @@
     <![CDATA[The attribute is missing.]]>
     </message>
     <message code="validator.attribute.depreciated" severity="error">
-    <![CDATA[The attribute is depreciated.]]>
+    <![CDATA[The attribute is deprecated.]]>
     </message>
     <message code="validator.attribute.missing" severity="error">
     <![CDATA[A required attribute is missing.]]>
@@ -80,41 +80,97 @@
     <![CDATA[The rdg @resp attribute does not look correct.]]>
     </message>
 
-    <message code="validator.nesting.missing_start" severity="error">
+    <message code="validator.tagBalance.missing_start_tag" severity="error">
     <![CDATA[End tag without a start tag.]]>
     </message>
-    <message code="validator.nesting.recursive" severity="error">
-    <![CDATA[ISE tags cannot be nested recursively.]]>
+    <message code="validator.tagBalance.unclosed" severity="error">
+    <![CDATA[This tag is not closed.]]>
     </message>
-    <message code="validator.nesting.split_tag" severity="warning">
+    
+    <message code="validator.nesting.split" severity="warning">
     <![CDATA[This tag is split/improperly nested.]]>
     </message>
-    <message code="validator.nesting.unclosed" severity="error">
-    <![CDATA[This tag is not closed.]]>
+    <message code="validator.nesting.required" severity="error">
+	<![CDATA[This tag is not the descendent of a required parent]]>
+    </message>
+    <message code="validator.nesting.redundant" severity="warning">
+	<![CDATA[This tag has redundantly nested children]]>
+    </message>
+    
+    <message code="validator.splitLine.invalid" severity="error">
+    <![CDATA[Splitlines cannot be started before a current one is finished.]]>
+    </message> 
+    <message code="validator.splitLine.notStartedM" severity="error">
+    <![CDATA[Middle splitline without a start.]]>
+    </message>
+    <message code="validator.splitLine.notStartedF" severity="error">
+    <![CDATA[Final splitline without a start.]]>
+    </message>
+    <message code="validator.splitLine.crossing" severity="error">
+    <![CDATA[Sectioning tag crosses a split line.]]>
+    </message>  
+    <message code="validator.splitLine.unclosed" severity="error">
+    <![CDATA[Unclosed initial splitline.]]>
+    </message>  
+    <message code="validator.splitLine.missingPart" severity="warning">
+    <![CDATA[This line is within a split line but does not have a @part=m attribute.]]>
     </message>
     <message code="validator.rule.linenotempty" severity="warning">
     <![CDATA[RULE tags should only occur on a line by themselves.]]>
     </message>
     <message code="validator.tag.depreciated" severity="error">
-    <![CDATA[This tag is depreciated.]]>
+    <![CDATA[This tag is deprecated.]]>
     </message>
     <message code="validator.tag.endattributes" severity="error">
     <![CDATA[End tags do not take attributes.]]>
     </message>
     <message code="validator.tag.endempty" severity="warning">
-    <![CDATA[Empty tag should be empty.]]>
+    <![CDATA[Self-closing tag should be empty.]]>
     </message>
     <message code="validator.tag.notempty" severity="error">
-    <![CDATA[Empty tag should be start/end tags.]]>
+    <![CDATA[Self-closing tag should be start/end tags.]]>
     </message>
     <message code="validator.tag.startempty" severity="warning">
-    <![CDATA[Start tag should be empty tag.]]>
+    <![CDATA[Start tag should be self-closing.]]>
     </message>
     <message code="validator.tag.unknown" severity="error">
     <![CDATA[This tag is not defined in the schema.]]>
     </message>
     <message code="validator.text.depreciatedhash" severity="error">
-    <![CDATA[{#} is depreciated SGML markup. ]]>
+    <![CDATA[{#} is deprecated SGML markup. ]]>
     </message>
+    
+    <message code="validator.coverage.outside_div" severity="error">
+     <![CDATA[This text is inside matter, but not inside a DIV.]]>
+    </message>    
+    <message code="validator.coverage.outside_body" severity="error">
+    <![CDATA[This text is outside a SCENE and/or ACT and/or DIV, but such tags exist.]]>
+    </message>    
+    <message code="validator.coverage.outside_page" severity="error">
+    <![CDATA[This text is outside a PAGE, but PAGE tags exist.]]>
+    </message>    
+    <message code="validator.coverage.required" severity="error">
+    <![CDATA[Text must be within at least one type of sectioning element.]]>
+    </message>
+    
+    <message code="validator.foreign.invalidCode" severity="error">
+    <![CDATA[The @lang attribute is invalid.]]>
+    </message>    
+    <message code="validator.foreign.missingCode" severity="error">
+    <![CDATA[This tag is missing a required (@lang) attribute.]]>
+    </message>
+    
+    <message code="validator.hungWord.endOfLine" severity="error">
+    <![CDATA[Non-whitespace text may not follow an HW tag on the same line.]]>
+    </message>
+    
+    <message code="validator.descendantCount.overCount" severity="error">
+    <![CDATA[This tag has too many descendants of the same name.]]>
+    </message>
+    
+    <message code="validator.spanLine.spannedLines" severity="error">
+    <![CDATA[This tag may not span more than one line.]]>
+    </message>
+    
   </errorCodes>
 </messages>

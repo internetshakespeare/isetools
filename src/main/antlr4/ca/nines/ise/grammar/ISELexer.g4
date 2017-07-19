@@ -30,6 +30,8 @@ CHAR_UNICODE
     | '{R}'       // upper rotunda r      Ꝛ     U+A75A
     | '{th}'      // lower thorn          þ     U+00FE
     | '{TH}'      // upper thorn          Þ     U+00DE  
+    | '{Y}'		  // upper yogh			  Ȝ	    U+021C
+    | '{y}'		  // lower yogh			  ȝ		U+021D
     ) 
     ;
 

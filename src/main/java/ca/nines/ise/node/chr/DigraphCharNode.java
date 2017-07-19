@@ -31,7 +31,7 @@ public class DigraphCharNode extends CharNode {
   /**
    * Mapping.
    */
-  private static final HashMap<String, String> charMap = new HashMap<>();
+  public static final HashMap<String, String> charMap = new HashMap<>();
 
   /**
    * Construct the mapping.

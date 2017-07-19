@@ -20,9 +20,12 @@ import ca.nines.ise.schema.Attribute.AttributeBuilder;
 import ca.nines.ise.util.BuilderInterface;
 import ca.nines.ise.util.LocationData;
 import ca.nines.ise.util.XMLDriver;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Formatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeMap;
@@ -44,7 +47,7 @@ import org.xml.sax.SAXException;
 public class Tag implements Comparable<Tag> {
 
   /**
-   * A mapping of attribute names and attribut objects.
+   * A mapping of attribute names and attribute objects.
    */
   private final Map<String, Attribute> attributes;
 
@@ -83,6 +86,37 @@ public class Tag implements Comparable<Tag> {
    * Where the tag is valid.
    */
   private final String where;
+  
+  /**
+   * Attributes specific to xml conversion
+   */
+  private final String xml_inline;
+  private final String xml_flatten;
+  private final String xml_typeface;
+  private final String xml_line_parent;
+  private final String xml_unparsed_text;
+  
+  /**
+   * Tags this tag cannot split
+   */
+  private final List<String> noSplit;
+  
+  /**
+   * Tag this tag should be a child of
+   */
+  private final String ancestor;
+  
+  /**
+   * Whether or not nesting this tag is redundant
+   * yes/no
+   */
+  private final String redundant;
+  
+  /**
+   * Whether or not this tag may span multiple lines
+   * yes/no
+   */
+  private final String spansLines;
 
   /**
    * A builder class for constructing tags. Use Tag#builder() to get a
@@ -95,6 +129,15 @@ public class Tag implements Comparable<Tag> {
     private String desc;
     private String empty;
     private String where;
+    private String xml_inline;
+    private String xml_flatten;
+    private String xml_typeface;
+    private String xml_line_parent;
+    private String xml_unparsed_text;
+    private List<String> noSplit;
+    private String ancestor;
+    private String redundant;
+    private String spansLines;
 
     private int lineNumber;
     private String name;
@@ -111,9 +154,18 @@ public class Tag implements Comparable<Tag> {
       desc = "";
       empty = "";
       where = "";
+      noSplit = null;
+      ancestor = "";
+      redundant = "";
+      spansLines = "";
       name = "";
       lineNumber = 0;
       source = "";
+      xml_inline = "";
+      xml_flatten = "";
+      xml_typeface = "";
+      xml_line_parent = "";
+      xml_unparsed_text = "";
     }
 
     /**
@@ -134,7 +186,7 @@ public class Tag implements Comparable<Tag> {
      */
     @Override
     public Tag build() {
-      return new Tag(name, desc, empty, where, depreciated, attributes, source, lineNumber);
+      return new Tag(name, desc, empty, where, depreciated, xml_inline, xml_flatten, xml_typeface, xml_line_parent, xml_unparsed_text, attributes, source, lineNumber, noSplit, ancestor, redundant, spansLines);
     }
 
     /**
@@ -162,10 +214,51 @@ public class Tag implements Comparable<Tag> {
       if (tmp != null) {
         setWhere(tmp.getTextContent());
       }
+      
+      tmp = map.getNamedItem("noSplit");
+      if (tmp != null) {
+        setNoSplit(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("ancestor");
+      if (tmp != null) {
+        setAncestor(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("redundant");
+      if (tmp != null) {
+        setRedundant(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("spansLines");
+      if (tmp !=  null){
+        setSpansLines(tmp.getTextContent());
+      }
 
       tmp = map.getNamedItem("depreciated");
       if (tmp != null) {
         setDepreciated(tmp.getTextContent());
+      }
+      
+      tmp = map.getNamedItem("xml_inline");
+      if (tmp != null) {
+        setXMLInline(tmp.getTextContent());
+      }
+      tmp = map.getNamedItem("xml_flatten");
+      if (tmp != null) {
+        setXMLFlatten(tmp.getTextContent());
+      }
+      tmp = map.getNamedItem("xml_typeface");
+      if (tmp != null) {
+        setXMLTypeface(tmp.getTextContent());
+      }
+      tmp = map.getNamedItem("xml_line_parent");
+      if (tmp != null) {
+        setXMLLineParent(tmp.getTextContent());
+      }
+      tmp = map.getNamedItem("xml_unparsed_text");
+      if (tmp != null) {
+        setXMLUnparsedText(tmp.getTextContent());
       }
 
       tmp = ((Element) n).getElementsByTagName("desc").item(0);
@@ -221,6 +314,27 @@ public class Tag implements Comparable<Tag> {
       this.depreciated = depreciated;
       return this;
     }
+    
+    public TagBuilder setXMLInline(String xml_inline) {
+      this.xml_inline = xml_inline;
+      return this;
+    }
+    public TagBuilder setXMLFlatten(String xml_flatten) {
+      this.xml_flatten = xml_flatten;
+      return this;
+    }
+    public TagBuilder setXMLTypeface(String xml_typeface) {
+      this.xml_typeface = xml_typeface;
+      return this;
+    }
+    public TagBuilder setXMLLineParent(String xml_line_parent) {
+      this.xml_line_parent = xml_line_parent;
+      return this;
+    }
+    public TagBuilder setXMLUnparsedText(String xml_unparsed_text) {
+      this.xml_unparsed_text = xml_unparsed_text;
+      return this;
+    }
 
     /**
      * Set the tag's description.
@@ -244,9 +358,56 @@ public class Tag implements Comparable<Tag> {
       return this;
     }
     
+    /**
+     * Set where the tag should be.
+     * 
+     * @param where the where to set
+     * @return
+     */
     public TagBuilder setWhere(String where) {
-        this.where = where;
-        return this;
+      this.where = where;
+      return this;
+    }
+    
+    /**
+     * Set the tags this tag should not split
+     * 
+     * @param noSplit comma delimited list of tags not to split
+     * @return
+     */
+    public TagBuilder setNoSplit(String noSplit) {
+      this.noSplit = Arrays.asList(noSplit.split(",[ ]*"));
+      return this;
+    }
+    
+    /**
+     * Ancestor of this tag
+     * 
+     * @param ancestor the ancestor to set
+     * @return
+     */
+    public TagBuilder setAncestor(String ancestor) {
+      this.ancestor = ancestor;
+      return this;
+    }
+    
+    /**
+     * Sets whether or not this tag is redundant
+     * 
+     * @param redundant the redundancy to set
+     * @return
+     */
+    public TagBuilder setRedundant(String redundant) {
+      this.redundant = redundant;
+      return this;
+    }
+    
+    /**
+     * Sets whether or not this tag may span lines
+     */
+    public TagBuilder setSpansLines(String spansLines) {
+      this.spansLines = spansLines;
+      return this;
     }
 
     /**
@@ -304,14 +465,25 @@ public class Tag implements Comparable<Tag> {
    * @param source
    * @param lineNumber
    */
-  private Tag(String name, String desc, String empty, String where, String depreciated, Map<String, Attribute> attributes, String source, int lineNumber) {
+  private Tag(String name, String desc, String empty, String where, String depreciated, 
+      String xml_inline, String xml_flatten, String xml_typeface, String xml_line_parent, String xml_unparsed_text,
+      Map<String, Attribute> attributes, String source, int lineNumber, List noSplit, String ancestor, String redundant, String spansLines) {
     this.name = name;
     this.desc = desc;
     this.where = where;
+    this.noSplit = noSplit;
+    this.ancestor = ancestor;
+    this.redundant = redundant;
+    this.spansLines = spansLines;
     this.empty = empty;
     this.depreciated = depreciated;
     this.attributes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
     this.attributes.putAll(attributes);
+    this.xml_inline = xml_inline;
+    this.xml_flatten = xml_flatten;
+    this.xml_typeface = xml_typeface;
+    this.xml_line_parent = xml_line_parent;
+    this.xml_unparsed_text = xml_unparsed_text;
     this.source = source;
     this.lineNumber = lineNumber;
   }
@@ -379,6 +551,22 @@ public class Tag implements Comparable<Tag> {
   public String getDepreciated() {
     return depreciated;
   }
+  
+  public String getXMLInline() {
+    return xml_inline;
+  }
+  public String getXMLFlatten() {
+    return xml_flatten;
+  }
+  public String getXMLTypeface() {
+    return xml_typeface;
+  }
+  public String getXMLLineParent() {
+    return xml_line_parent;
+  }
+  public String getXMLUnparsedText() {
+    return xml_unparsed_text;
+  }
 
   /**
    * Get the description
@@ -404,6 +592,10 @@ public class Tag implements Comparable<Tag> {
     return "no";
   }
   
+  /**
+   * returns where this tag should be in a document.
+   * @return
+   */
   public String getWhere() {
       if(where.equals("")) {
           return "anywhere";
@@ -411,6 +603,38 @@ public class Tag implements Comparable<Tag> {
       return where;
   }
 
+  /**
+   * Returns a list of tags that this tag may not split.
+   * @return
+   */
+  public List getNoSplit() {
+    return noSplit;
+  }
+  
+  /**
+   * Returns this tag's mandatory ancestor.
+   * @return
+   */
+  public String getAncestor() {
+    return ancestor;
+  }
+  
+  /**
+   * Returns the redundant field of this tag
+   * @return
+   */
+  public String getRedundant() {
+    return redundant;
+  }
+  
+  /**
+   * returns the spansLines field of this tag
+   * @return
+   */
+  public String getSpansLines() {
+    return spansLines;
+  }
+  
   /**
    * Get the line number where the tag is defined.
    *
@@ -474,7 +698,7 @@ public class Tag implements Comparable<Tag> {
   public boolean maybeEmpty() {
     return empty.equals("yes") || empty.equals("optional");
   }
-
+  
   /**
    * Turn the tag into a string. Useful only for debugging.
    *
@@ -492,4 +716,5 @@ public class Tag implements Comparable<Tag> {
 
     return formatter.toString();
   }
+
 }

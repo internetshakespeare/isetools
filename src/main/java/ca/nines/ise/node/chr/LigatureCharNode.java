@@ -16,6 +16,9 @@
  */
 package ca.nines.ise.node.chr;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import ca.nines.ise.dom.Fragment;
 import ca.nines.ise.node.CharNode;
 
@@ -26,6 +29,25 @@ import ca.nines.ise.node.CharNode;
  */
 public class LigatureCharNode extends CharNode {
 
+  /**
+   * Mapping.
+   */
+  public static final HashMap<String, String> ligMap = new HashMap<>();
+
+  /**
+   * Construct the mapping.
+   */
+  static {
+    ligMap.put("{ff}", "\uFB00");
+    ligMap.put("{fi}", "\uFB01");
+    ligMap.put("{fl}", "\uFB02");
+    ligMap.put("{ffi}", "\uFB03");
+    ligMap.put("{ffl}", "\uFB04");
+    ligMap.put("{st}", "\uFB06");
+    ligMap.put("{ij}", "\u0133");
+    ligMap.put("{IJ}", "\u0132");
+  }
+  
   /**
    * Expand the ligature to a DOM fragment.
    *

@@ -169,7 +169,7 @@ abstract public class TagNodeValidator<T extends TagNode> implements NodeValidat
         continue;
       }
       String attrValue = n.getAttribute(attrName);
-      if (attrValue == null) {
+      if (attrValue == null && !attr.isDepreciated()) {
         m = Message.builder("validator.attribute.missing")
                 .fromNode(n)
                 .addNote("Attribute " + attrName + " is required for " + tagName + " tags")
