@@ -555,7 +555,7 @@
     </tag>
     <tag name="SCENE" where="primary" noSplit="MARG, BRACEGROUP, SCENE">
       <desc><![CDATA[Scene division as in the modern edition. Note: In plays with a non-diegetic chorus, like Henry V (F) and Pericles, use <SCENE n="0"> to designate chorus passages that are not prologues or epilogues. SCENEs may be used with or without enclosing ACTs.]]></desc>
-      <attribute name="n" type="number" renumber="yes">
+      <attribute name="n" type="string" renumber="yes">
         <desc><![CDATA[The number of the scene, not including any Act numbering.]]></desc>
       </attribute>
       <attribute name="link" type="string" optional="yes" depreciated="Link attributes should be dropped from the text.">
